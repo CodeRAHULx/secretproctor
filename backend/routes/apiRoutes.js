@@ -11,6 +11,7 @@ function handleApiRoutes(req, res) {
         if (req.url === '/api/auth/google' && req.method === 'GET') { authController.startGoogle(req, res); return true; }
         if (req.url.startsWith('/api/auth/google/callback') && req.method === 'GET') { authController.googleCallback(req, res); return true; }
         if (req.url === '/api/auth/me' && req.method === 'GET') { authController.me(req, res); return true; }
+        if (req.url === '/api/auth/logout' && (req.method === 'POST' || req.method === 'GET')) { authController.logout(req, res); return true; }
         // 1. Session Verification & Authentication
         if (req.url === '/api/session/verify' && req.method === 'POST') {
             sessionController.verifySessionAccess(req, res);

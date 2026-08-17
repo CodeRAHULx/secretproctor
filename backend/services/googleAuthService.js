@@ -2,22 +2,59 @@ const crypto = require('crypto');
 const https = require('https');
 const config = require('../config/config');
 
-class GoogleAuthService {
-    constructor() {
-        this.pendingStates = new Map();
-        this.sessions = new Map();
-    }
+const SECRET_KEY = config.GOOGLE.CLIENT_SECRET || process.env.SESSION_SECRET || 'securemeet-super-secret-hmac-key-2026';
 
+class GoogleAuthService {
     get enabled() {
         return Boolean(config.GOOGLE.CLIENT_ID && config.GOOGLE.CLIENT_SECRET);
     }
 
-    createAuthorizationUrl() {
-        const state = crypto.randomBytes(32).toString('hex');
-        this.pendingStates.set(state, Date.now() + 10 * 60 * 1000);
+    getRedirectUri(req) {
+        if (process.env.GOOGLE_REDIRECT_URI) {
+            return process.env.GOOGLE_REDIRECT_URI;
+        }
+        if (req && req.headers) {
+            const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
+            const proto = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
+            return `${proto}://${host}/api/auth/google/callback`;
+        }
+        return config.GOOGLE.REDIRECT_URI;
+    }
+
+    signPayload(data) {
+        const json = Buffer.from(JSON.stringify(data)).toString('base64url');
+        const signature = crypto.createHmac('sha256', SECRET_KEY).update(json).digest('base64url');
+        return `${json}.${signature}`;
+    }
+
+    verifyPayload(token) {
+        if (!token || typeof token !== 'string') return null;
+        const parts = token.split('.');
+        if (parts.length !== 2) return null;
+        const [json, signature] = parts;
+        const expected = crypto.createHmac('sha256', SECRET_KEY).update(json).digest('base64url');
+        if (signature !== expected) return null;
+        try {
+            const data = JSON.parse(Buffer.from(json, 'base64url').toString('utf8'));
+            if (data.exp && data.exp < Date.now()) return null;
+            return data;
+        } catch {
+            return null;
+        }
+    }
+
+    createAuthorizationUrl(req) {
+        const redirectUri = this.getRedirectUri(req);
+        // Stateless state token valid for 15 minutes
+        const state = this.signPayload({
+            nonce: crypto.randomBytes(16).toString('hex'),
+            redirectUri,
+            exp: Date.now() + 15 * 60 * 1000
+        });
+
         const query = new URLSearchParams({
             client_id: config.GOOGLE.CLIENT_ID,
-            redirect_uri: config.GOOGLE.REDIRECT_URI,
+            redirect_uri: redirectUri,
             response_type: 'code',
             scope: 'openid email profile',
             state,
@@ -27,18 +64,20 @@ class GoogleAuthService {
         return { state, url: `https://accounts.google.com/o/oauth2/v2/auth?${query}` };
     }
 
-    consumeState(state) {
-        const expiresAt = this.pendingStates.get(state);
-        this.pendingStates.delete(state);
-        return Boolean(expiresAt && expiresAt > Date.now());
+    verifyState(state) {
+        const data = this.verifyPayload(state);
+        return Boolean(data && data.nonce);
     }
 
-    async exchangeCode(code) {
+    async exchangeCode(code, req, state) {
+        const stateData = this.verifyPayload(state);
+        const redirectUri = stateData?.redirectUri || this.getRedirectUri(req);
+
         const token = await this.request('POST', 'oauth2.googleapis.com', '/token', new URLSearchParams({
             code,
             client_id: config.GOOGLE.CLIENT_ID,
             client_secret: config.GOOGLE.CLIENT_SECRET,
-            redirect_uri: config.GOOGLE.REDIRECT_URI,
+            redirect_uri: redirectUri,
             grant_type: 'authorization_code'
         }).toString(), { 'Content-Type': 'application/x-www-form-urlencoded' });
 
@@ -50,15 +89,16 @@ class GoogleAuthService {
     }
 
     createSession(user) {
-        const id = crypto.randomBytes(32).toString('base64url');
-        this.sessions.set(id, { user, expiresAt: Date.now() + 8 * 60 * 60 * 1000 });
-        return id;
+        // Stateless session cookie valid for 7 days
+        return this.signPayload({
+            user,
+            exp: Date.now() + 7 * 24 * 60 * 60 * 1000
+        });
     }
 
-    getSession(id) {
-        const session = this.sessions.get(id);
-        if (!session || session.expiresAt < Date.now()) { this.sessions.delete(id); return null; }
-        return session.user;
+    getSession(token) {
+        const data = this.verifyPayload(token);
+        return data ? data.user : null;
     }
 
     request(method, hostname, pathname, body, headers = {}) {

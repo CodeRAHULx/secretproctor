@@ -1,27 +1,42 @@
 class SessionManager {
     constructor() {
-        // Pre-configured authorized interview sessions
         this.sessions = new Map();
 
-        // Default default secure session
+        // Default instant demo room
         this.createSession({
-            sessionId: 'tech-interview-live-892',
-            title: 'Senior Software Engineer Technical Interview',
-            passcode: 'SECURE2026',
-            interviewerKey: 'PROCTOR_KEY_892',
-            candidateName: 'John Doe',
+            sessionId: 'sec-meet-demo',
+            title: 'Technical Interview & Integrity Assessment',
+            passcode: '',
+            candidateName: 'Candidate',
             allowedRoles: ['candidate', 'interviewer']
         });
     }
 
-    createSession({ sessionId, title, passcode, interviewerKey, candidateName, allowedRoles }) {
+    generateMeetingCode() {
+        const letters = 'abcdefghijklmnopqrstuvwxyz';
+        const randStr = len => Array.from({ length: len }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
+        return `${randStr(3)}-${randStr(4)}-${randStr(3)}`;
+    }
+
+    normalizeCode(code) {
+        if (!code) return '';
+        let cleaned = code.trim().toLowerCase();
+        // Remove full URLs if user pasted a link
+        cleaned = cleaned.replace(/^https?:\/\/[^\/]+\//, '');
+        // Replace spaces or multiple dashes
+        cleaned = cleaned.replace(/[^a-z0-9-]/g, '');
+        return cleaned;
+    }
+
+    createSession({ sessionId, title, passcode, candidateName, allowedRoles, createdBy }) {
+        const cleanId = this.normalizeCode(sessionId) || this.generateMeetingCode();
         const session = {
-            sessionId: sessionId || `room_${Date.now().toString(36)}`,
-            title: title || 'Secure Technical Interview',
-            passcode: passcode || 'SECURE2026',
-            interviewerKey: interviewerKey || `PROCTOR_${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-            candidateName: candidateName || 'Candidate',
+            sessionId: cleanId,
+            title: title || 'Secure Video Meeting',
+            passcode: passcode || '',
+            candidateName: candidateName || 'Participant',
             allowedRoles: allowedRoles || ['candidate', 'interviewer'],
+            createdBy: createdBy || null,
             createdAt: new Date().toISOString(),
             activeParticipants: []
         };
@@ -29,25 +44,37 @@ class SessionManager {
         return session;
     }
 
-    verifyAccess(sessionId, passcode, role, participantName) {
-        const session = this.sessions.get(sessionId);
+    verifyAccess(sessionId, passcode, role, participantName, user) {
+        const cleanId = this.normalizeCode(sessionId);
+        if (!cleanId) {
+            return { authorized: false, error: 'Please enter a valid meeting code or link.' };
+        }
+
+        let session = this.sessions.get(cleanId);
+        
+        // Auto-provision meeting room if joining a valid formatted code
         if (!session) {
-            return { authorized: false, error: 'Session not found. Please verify the Room ID.' };
+            session = this.createSession({
+                sessionId: cleanId,
+                title: 'Live Video Meeting',
+                passcode: '',
+                candidateName: participantName || user?.name || 'Participant',
+                createdBy: user || null
+            });
         }
 
-        if (session.passcode !== passcode) {
-            return { authorized: false, error: 'Invalid Session Passcode. Access Denied.' };
+        if (session.passcode && session.passcode !== passcode) {
+            return { authorized: false, error: 'Invalid meeting passcode.' };
         }
 
-        if (!session.allowedRoles.includes(role)) {
-            return { authorized: false, error: `Role '${role}' is not authorized for this session.` };
-        }
-
-        const token = `auth_${role}_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+        const effectiveName = participantName || user?.name || (role === 'interviewer' ? 'Interviewer' : 'Participant');
+        const token = `token_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
         const participant = {
             token,
-            name: participantName || (role === 'interviewer' ? 'Technical Interviewer' : 'Candidate'),
-            role,
+            name: effectiveName,
+            email: user?.email || '',
+            picture: user?.picture || '',
+            role: role || 'candidate',
             joinedAt: new Date().toISOString()
         };
 
@@ -58,13 +85,15 @@ class SessionManager {
             token,
             sessionId: session.sessionId,
             title: session.title,
-            role,
-            participantName: participant.name
+            role: participant.role,
+            participantName: participant.name,
+            participantEmail: participant.email,
+            participantPicture: participant.picture
         };
     }
 
     getSession(sessionId) {
-        return this.sessions.get(sessionId);
+        return this.sessions.get(this.normalizeCode(sessionId));
     }
 }
 

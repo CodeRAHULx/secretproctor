@@ -8,6 +8,25 @@ const request = async (url, options = {}) => {
 export const api = {
   currentUser: () => request('/api/auth/me'),
   googleStatus: () => request('/api/auth/google/status'),
-  joinSession: body => request('/api/session/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-  saveAudit: body => request('/api/audit/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  logout: () => request('/api/auth/logout', { method: 'POST' }),
+  createMeeting: (body = {}) => request('/api/session/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  joinMeeting: (body) => request('/api/session/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  saveAudit: (body) => request('/api/audit/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  killThreat: (body) => request('/api/threat/kill', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
 };

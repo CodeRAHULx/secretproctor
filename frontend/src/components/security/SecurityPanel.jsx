@@ -1,4 +1,154 @@
-function Detection({ threat, checks }) { return <div className="guard-body"><section className={`status-card ${threat ? 'danger-card' : ''}`}><b>{threat ? 'Hidden window detected' : 'No threats detected'}</b><span>{threat ? 'Review the incident details below.' : 'Watchdog scans every second.'}</span></section>{threat && <section className="incident"><span>CRITICAL</span><h3>{threat.path?.split('\\').pop() || 'Unknown process'}</h3><dl><dt>PID</dt><dd>{threat.pid}</dd><dt>Window</dt><dd>{threat.title || 'Untitled'}</dd><dt>Signal</dt><dd>{threat.flag || threat.affinity || 'Display affinity'}</dd><dt>Reason</dt><dd>{threat.reason || 'Capture-evasion signal'}</dd></dl></section>}<h4>Integrity checks</h4>{checks.map(([name, value, state]) => <div className={`check ${state}`} key={name}><i>{state === 'ok' ? 'OK' : '!'}</i><span>{name}</span><strong>{value}</strong></div>)}</div>; }
-function Activity({ logs, clear, exportAudit }) { return <div className="guard-body activity"><div className="activity-head"><div><h4>Event timeline</h4><small>Client-side session events</small></div><button onClick={clear}>Clear</button></div>{logs.length ? logs.map(item => <div className={`log ${item.level}`} key={item.id}><time>{item.at}</time><span>{item.message}</span></div>) : <p className="empty">No events yet.</p>}<button className="export" onClick={exportAudit}>Export audit report</button></div>; }
-function Session({ meeting }) { return <div className="guard-body summary"><div><span>Participant</span><b>{meeting.session.participantName}</b></div><div><span>Role</span><b>{meeting.session.role}</b></div><div><span>Authentication</span><b>{meeting.session.authProvider}</b></div><p>This extensible panel is reserved for reviewer tools, consent records, and additional session controls.</p></div>; }
-export function SecurityPanel({ tab, setTab, threat, meeting, onClose }) { const tabs = [['detection', 'Detection'], ['activity', `Activity ${meeting.logs.length}`], ['session', 'Session']]; return <aside className="guard"><header><div><p className="eyebrow">SESSION GUARD</p><h2>Integrity centre</h2></div><button onClick={onClose} aria-label="Close security panel">×</button></header><nav>{tabs.map(([key, label]) => <button key={key} className={tab === key ? 'selected' : ''} onClick={() => setTab(key)}>{label}</button>)}</nav>{tab === 'detection' && <Detection threat={threat} checks={meeting.checks} />}{tab === 'activity' && <Activity logs={meeting.logs} clear={() => meeting.setLogs([])} exportAudit={meeting.exportAudit} />}{tab === 'session' && <Session meeting={meeting} />}</aside>; }
+function DetectionTab({ threat, checks, onKillThreat }) {
+  return (
+    <div className="guard-body">
+      <section className={`status-card ${threat ? 'danger-card' : ''}`}>
+        <div className="status-header">
+          <span className={`status-pulse ${threat ? 'pulse-red' : 'pulse-green'}`} />
+          <b>{threat ? 'Hidden Window (Evasion) Detected' : 'Display Feed Verified Clean'}</b>
+        </div>
+        <span>{threat ? 'Process using WDA_EXCLUDEFROMCAPTURE to evade capture.' : 'Continuous display affinity scanner active (1000ms polling).'}</span>
+      </section>
+
+      {threat && (
+        <section className="incident">
+          <div className="incident-badge">CRITICAL EVASION SIGNAL</div>
+          <h3>{threat.path?.split('\\').pop() || 'Stealth Process'}</h3>
+          <dl>
+            <dt>PID</dt>
+            <dd><code>{threat.pid}</code></dd>
+            <dt>Window</dt>
+            <dd>{threat.title || 'Untitled / Hidden Window'}</dd>
+            <dt>Affinity</dt>
+            <dd><code>{threat.flag || threat.affinity || 'WDA_EXCLUDEFROMCAPTURE'}</code></dd>
+            <dt>Path</dt>
+            <dd className="incident-path">{threat.path || 'Unknown location'}</dd>
+          </dl>
+
+          <button
+            className="btn-terminate-threat"
+            onClick={() => onKillThreat(threat.pid, threat.hwnd)}
+          >
+            ⚡ Terminate Cheat Process
+          </button>
+        </section>
+      )}
+
+      <h4>Client Integrity Signals</h4>
+      <div className="checks-list">
+        {checks.map(([name, value, state]) => (
+          <div className={`check-item ${state}`} key={name}>
+            <span className="check-icon">{state === 'ok' ? '✓' : '!'}</span>
+            <span className="check-name">{name}</span>
+            <strong className="check-val">{value}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ActivityTab({ logs, clear, exportAudit }) {
+  return (
+    <div className="guard-body activity">
+      <div className="activity-head">
+        <div>
+          <h4>Event Timeline</h4>
+          <small>Continuous tamper & integrity logs</small>
+        </div>
+        {logs.length > 0 && <button className="btn-clear-logs" onClick={clear}>Clear</button>}
+      </div>
+
+      <div className="logs-container">
+        {logs.length ? (
+          logs.map(item => (
+            <div className={`log-entry ${item.level}`} key={item.id}>
+              <time>{item.at}</time>
+              <span>{item.message}</span>
+            </div>
+          ))
+        ) : (
+          <p className="empty-logs">No security incidents logged in this session.</p>
+        )}
+      </div>
+
+      <button className="btn-export-audit" onClick={exportAudit}>
+        📄 Export Forensic Audit Report (JSON)
+      </button>
+    </div>
+  );
+}
+
+function SessionTab({ meeting }) {
+  return (
+    <div className="guard-body summary">
+      <div className="summary-card">
+        <span>Active User</span>
+        <b>{meeting.session.participantName}</b>
+        <small>{meeting.session.participantEmail || 'Authenticated Session'}</small>
+      </div>
+
+      <div className="summary-card">
+        <span>Meeting Code</span>
+        <b><code>{meeting.session.sessionId}</code></b>
+      </div>
+
+      <div className="summary-card">
+        <span>Security Layer</span>
+        <b>Native Win32 Display Affinity Hook</b>
+        <small>Real-time protection against invisible overlay windows.</small>
+      </div>
+    </div>
+  );
+}
+
+export function SecurityPanel({ tab, setTab, threat, meeting, onClose }) {
+  const tabs = [
+    ['detection', 'Shield'],
+    ['activity', `Timeline (${meeting.logs.length})`],
+    ['session', 'Details']
+  ];
+
+  return (
+    <aside className="guard-panel">
+      <header className="guard-header">
+        <div>
+          <p className="guard-eyebrow">INTEGRITY SHIELD</p>
+          <h2 className="guard-title">Session Guard</h2>
+        </div>
+        <button onClick={onClose} className="btn-close-guard" aria-label="Close panel">×</button>
+      </header>
+
+      <nav className="guard-nav">
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            className={`guard-tab-btn ${tab === key ? 'active' : ''}`}
+            onClick={() => setTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === 'detection' && (
+        <DetectionTab
+          threat={threat}
+          checks={meeting.checks}
+          onKillThreat={meeting.killActiveThreat}
+        />
+      )}
+
+      {tab === 'activity' && (
+        <ActivityTab
+          logs={meeting.logs}
+          clear={() => meeting.setLogs([])}
+          exportAudit={meeting.exportAudit}
+        />
+      )}
+
+      {tab === 'session' && (
+        <SessionTab meeting={meeting} />
+      )}
+    </aside>
+  );
+}
