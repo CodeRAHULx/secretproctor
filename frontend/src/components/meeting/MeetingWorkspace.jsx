@@ -44,26 +44,28 @@ function VideoTile({ name, initials, picture, stream, muted, threatened }) {
 }
 
 export function MeetingWorkspace({ meeting }) {
-  const [guardOpen, setGuardOpen] = useState(true);
+  const [guardOpen, setGuardOpen] = useState(false);
   const [tab, setTab] = useState('detection');
+  const [linkCopied, setLinkCopied] = useState(false);
   const threat = meeting.threats[0];
+
+  const copyRoomLink = () => {
+    const url = `${window.location.origin}/?room=${meeting.session.sessionId}`;
+    navigator.clipboard.writeText(url);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 3000);
+  };
 
   return (
     <main className="workspace">
-      {/* Top Header */}
+      {/* Top Header - Clean, No Fake Logos */}
       <header className="meet-workspace-topbar">
         <div className="topbar-left">
-          <div className="workspace-brand">
-            <svg viewBox="0 0 88 72" width="22" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M48 36L64 24V48L48 36Z" fill="#00AC47"/>
-              <path d="M0 16C0 7.16344 7.16344 0 16 0H48V56C48 64.8366 40.8366 72 32 72H0V16Z" fill="#00832D"/>
-              <path d="M0 16C0 7.16344 7.16344 0 16 0H48V20H0V16Z" fill="#2684FC"/>
-              <path d="M0 20H48V52H0V20Z" fill="#0066DA"/>
-              <path d="M0 52H48V72H16C7.16344 72 0 64.8366 0 56V52Z" fill="#00AC47"/>
-              <path d="M48 20L68 5C70.6667 3 74 4.9 74 8.2V63.8C74 67.1 70.6667 69 68 67L48 52V20Z" fill="#FFBA00"/>
-            </svg>
-            <span className="workspace-title">{meeting.session.title || 'Secure Meeting'}</span>
-            <span className="workspace-code">({meeting.session.sessionId})</span>
+          <div className="workspace-meeting-info">
+            <span className="workspace-code">{meeting.session.sessionId}</span>
+            <button className="btn-copy-topbar" onClick={copyRoomLink} title="Copy meeting link">
+              {linkCopied ? '✓ Copied' : 'Copy link'}
+            </button>
           </div>
         </div>
 
@@ -72,27 +74,24 @@ export function MeetingWorkspace({ meeting }) {
         </div>
 
         <div className="topbar-right">
+          {/* Proctor Tool Status */}
           <button
-            className={`trust-badge ${threat ? 'threat-active' : 'secure'}`}
-            onClick={() => { setGuardOpen(true); setTab('detection'); }}
-            title="Integrity Shield Status"
+            className={`proctor-tool-badge ${threat ? 'threat-active' : 'normal'}`}
+            onClick={() => { setGuardOpen(!guardOpen); setTab('detection'); }}
+            title="Click to view Proctoring Watchdog Telemetry"
           >
-            <span className="trust-indicator" />
-            <span>{threat ? 'Threat Detected' : 'Shield Active'}</span>
+            <span className="proctor-status-dot" />
+            <span>{threat ? 'Threat Detected' : 'Proctor Active'}</span>
             <strong>{meeting.trust}%</strong>
           </button>
         </div>
       </header>
 
-      {/* Main Video & Guard Layout */}
+      {/* Main Video & Proctor Layout */}
       <section className="workspace-content">
         <div className="stage-area">
-          <div className="stage-header">
-            <span className="live-pill">● LIVE</span>
-            <span className="stage-session-name">{meeting.session.sessionId}</span>
-          </div>
-
           <div className="video-grid">
+            {/* Local Participant Video Tile */}
             <VideoTile
               name={meeting.session.participantName || meeting.identity?.name || 'You'}
               initials={meeting.initials}
@@ -101,15 +100,25 @@ export function MeetingWorkspace({ meeting }) {
               muted={!meeting.media.mic}
               threatened={Boolean(threat)}
             />
-            <VideoTile
-              name="Evaluator / Proctor"
-              initials="EP"
-              muted={false}
-              threatened={false}
-            />
+
+            {/* Waiting for participant tile */}
+            <div className="waiting-tile">
+              <div className="waiting-content">
+                <div className="waiting-icon">👥</div>
+                <h3>You're the only one here</h3>
+                <p>Share this meeting link with others to let them join:</p>
+                <div className="waiting-link-box">
+                  <code>{meeting.session.sessionId}</code>
+                  <button onClick={copyRoomLink}>
+                    {linkCopied ? '✓ Copied' : 'Copy link'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Proctoring / Integrity Guard Sidebar */}
         {guardOpen && (
           <SecurityPanel
             tab={tab}
@@ -121,7 +130,7 @@ export function MeetingWorkspace({ meeting }) {
         )}
       </section>
 
-      {/* Floating Bottom Controls Dock */}
+      {/* Bottom Floating Control Dock */}
       <footer className="meet-dock">
         <div className="dock-left">
           <span className="dock-user-info">
@@ -130,7 +139,7 @@ export function MeetingWorkspace({ meeting }) {
         </div>
 
         <div className="dock-center">
-          {/* Mic */}
+          {/* Microphone */}
           <button
             className={`dock-btn ${!meeting.media.mic ? 'danger' : ''}`}
             onClick={() => meeting.toggleMedia('mic')}
@@ -175,18 +184,18 @@ export function MeetingWorkspace({ meeting }) {
             </svg>
           </button>
 
-          {/* Guard Toggle */}
+          {/* Proctor Panel Toggle */}
           <button
             className={`dock-btn ${guardOpen ? 'active' : ''}`}
             onClick={() => setGuardOpen(!guardOpen)}
-            title="Toggle Integrity Shield Panel"
+            title="Toggle Proctoring Watchdog Panel"
           >
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
               <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
             </svg>
           </button>
 
-          {/* Leave Call */}
+          {/* Leave Meeting */}
           <button
             className="dock-btn end-call"
             onClick={meeting.leaveMeeting}
@@ -202,7 +211,7 @@ export function MeetingWorkspace({ meeting }) {
           <button
             className="dock-icon-btn"
             onClick={() => setGuardOpen(!guardOpen)}
-            title="Details & Guard"
+            title="Proctoring Details"
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>

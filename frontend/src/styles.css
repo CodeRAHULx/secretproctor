@@ -4,7 +4,6 @@
   --font-family: 'Google Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'DM Mono', monospace;
   
-  /* Google Meet Color Palette */
   --gm-bg: #202124;
   --gm-surface: #28292c;
   --gm-surface-hover: #35363a;
@@ -49,31 +48,20 @@ button, input, select {
   font-family: inherit;
 }
 
-/* ==========================================================================
-   Loading Screen
-   ========================================================================== */
+/* Loading Screen */
 .meet-loading-screen {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: 20px;
   background: var(--gm-bg);
 }
 
-.meet-logo-pulse {
-  animation: logoPulse 2s infinite ease-in-out;
-}
-
-@keyframes logoPulse {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50% { transform: scale(1.06); opacity: 1; }
-}
-
 .loading-spinner {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: 3px solid rgba(138, 180, 248, 0.2);
   border-top-color: var(--gm-blue);
   border-radius: 50%;
@@ -84,9 +72,7 @@ button, input, select {
   to { transform: rotate(360deg); }
 }
 
-/* ==========================================================================
-   Sign In Screen
-   ========================================================================== */
+/* Sign In Screen */
 .signin-container {
   min-height: 100vh;
   display: flex;
@@ -110,31 +96,25 @@ button, input, select {
 .meet-brand-center {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 28px;
-}
-
-.meet-logo-svg {
-  width: 42px;
-  height: 34px;
+  gap: 10px;
+  margin-bottom: 24px;
 }
 
 .brand-text {
   font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-weight: 500;
   color: var(--gm-text);
 }
 
 .signin-title {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 500;
   margin-bottom: 8px;
   color: var(--gm-text);
 }
 
 .signin-subtitle {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--gm-text-secondary);
   margin-bottom: 32px;
 }
@@ -193,9 +173,7 @@ button, input, select {
   color: var(--gm-text-muted);
 }
 
-/* ==========================================================================
-   Google Meet Home Page
-   ========================================================================== */
+/* Google Meet Home Screen */
 .meet-home {
   min-height: 100vh;
   display: flex;
@@ -203,7 +181,6 @@ button, input, select {
   background-color: var(--gm-bg);
 }
 
-/* Top App Bar */
 .meet-appbar {
   height: 68px;
   display: flex;
@@ -216,19 +193,13 @@ button, input, select {
 .meet-appbar-left {
   display: flex;
   align-items: center;
-  gap: 16px;
-}
-
-.meet-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .meet-logo-text {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 500;
   color: var(--gm-text-secondary);
+  letter-spacing: -0.01em;
 }
 
 .meet-appbar-right {
@@ -238,29 +209,11 @@ button, input, select {
 }
 
 .meet-clock {
-  font-size: 16px;
+  font-size: 15px;
   color: var(--gm-text-secondary);
-  font-weight: 400;
-  margin-right: 8px;
 }
 
-.meet-icon-btn {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  color: var(--gm-text-secondary);
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-
-.meet-icon-btn:hover {
-  background: var(--gm-surface-hover);
-  color: var(--gm-text);
-}
-
-/* Account Menu Dropdown */
+/* User Account Avatar & Dropdown */
 .account-menu-wrapper {
   position: relative;
 }
@@ -299,11 +252,11 @@ button, input, select {
   position: absolute;
   top: 48px;
   right: 0;
-  width: 320px;
+  width: 300px;
   background: #2d2e31;
   border: 1px solid var(--gm-border);
   border-radius: var(--gm-radius-lg);
-  padding: 20px;
+  padding: 18px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   z-index: 100;
   animation: fadeInDown 0.15s ease-out;
@@ -317,13 +270,13 @@ button, input, select {
 .account-dropdown-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .account-img-large, .account-initial-large {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -334,7 +287,7 @@ button, input, select {
   color: white;
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
 }
 
@@ -352,7 +305,7 @@ button, input, select {
 }
 
 .account-email {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--gm-text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -362,7 +315,7 @@ button, input, select {
 .account-dropdown-divider {
   height: 1px;
   background: var(--gm-border);
-  margin: 14px 0;
+  margin: 12px 0;
 }
 
 .account-shield-status {
@@ -371,7 +324,6 @@ button, input, select {
   gap: 8px;
   font-size: 12px;
   color: #81c995;
-  padding: 4px 0;
 }
 
 .shield-dot {
@@ -445,7 +397,7 @@ button, input, select {
   margin-bottom: 24px;
 }
 
-/* Actions Row: New Meeting + Input */
+/* Action Row */
 .meet-actions-row {
   display: flex;
   align-items: center;
@@ -482,7 +434,7 @@ button, input, select {
   position: absolute;
   top: 56px;
   left: 0;
-  width: 300px;
+  width: 310px;
   background: #2d2e31;
   border: 1px solid var(--gm-border);
   border-radius: var(--gm-radius-md);
@@ -528,7 +480,7 @@ button, input, select {
   color: var(--gm-text-secondary);
 }
 
-/* Join Code Form */
+/* Join Code Input Form */
 .meet-join-form {
   display: flex;
   align-items: center;
@@ -591,24 +543,124 @@ button, input, select {
   background: rgba(138, 180, 248, 0.1);
 }
 
-.meet-divider-line {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-  margin: 32px 0 24px;
+/* Dedicated Created Meeting Section */
+.created-meeting-section {
+  margin-top: 24px;
+  background: #28292c;
+  border: 1px solid rgba(138, 180, 248, 0.3);
+  border-radius: var(--gm-radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  animation: fadeInDown 0.2s ease-out;
 }
 
-.meet-info-link {
-  font-size: 14px;
+.created-meeting-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.created-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: #81c995;
+}
+
+.btn-close-created {
+  background: transparent;
+  border: none;
+  color: var(--gm-text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.created-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1f2022;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-sm);
+  padding: 10px 14px;
+}
+
+.code-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.code-label {
+  font-size: 12px;
   color: var(--gm-text-secondary);
 }
 
-.meet-info-link a {
+.code-value {
+  font-family: var(--font-mono);
+  font-size: 16px;
   color: var(--gm-blue);
-  text-decoration: none;
+  letter-spacing: 0.05em;
 }
 
-.meet-info-link a:hover {
-  text-decoration: underline;
+.btn-copy-code {
+  background: transparent;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-sm);
+  color: var(--gm-text);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-copy-code:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.created-link-preview {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--gm-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.created-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-join-created {
+  height: 38px;
+  background: var(--gm-blue-primary);
+  border: none;
+  border-radius: var(--gm-radius-sm);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 18px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-join-created:hover {
+  background: var(--gm-blue-hover);
+}
+
+.meet-divider-line {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 32px 0 20px;
+}
+
+.meet-info-link {
+  font-size: 13px;
+  color: var(--gm-text-secondary);
 }
 
 /* Right Column - Visual Carousel */
@@ -635,8 +687,8 @@ button, input, select {
 }
 
 .illustration-circle {
-  width: 130px;
-  height: 130px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #3c4043, #28292c);
   border: 2px solid rgba(255, 255, 255, 0.08);
@@ -645,14 +697,14 @@ button, input, select {
 }
 
 .carousel-icon-large {
-  font-size: 52px;
+  font-size: 48px;
 }
 
 .carousel-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 500;
   color: var(--gm-text);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .carousel-desc {
@@ -709,130 +761,16 @@ button, input, select {
   transform: scale(1.25);
 }
 
-/* Modal: Create Meeting for Later */
-.meet-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  display: grid;
-  place-items: center;
-  z-index: 200;
-  padding: 20px;
-}
-
-.meet-modal {
-  width: 100%;
-  max-width: 440px;
-  background: #28292c;
-  border: 1px solid var(--gm-border);
-  border-radius: var(--gm-radius-lg);
-  padding: 28px 24px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
-  animation: fadeInDown 0.15s ease-out;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.modal-header h2 {
-  font-size: 19px;
-  font-weight: 500;
-  color: var(--gm-text);
-}
-
-.modal-close-btn {
-  background: transparent;
-  border: none;
-  color: var(--gm-text-secondary);
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.modal-text {
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--gm-text-secondary);
-  margin-bottom: 20px;
-}
-
-.modal-copy-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #1f2022;
-  border: 1px solid var(--gm-border);
-  border-radius: var(--gm-radius-sm);
-  padding: 10px 14px;
-  margin-bottom: 24px;
-}
-
-.modal-link-text {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--gm-blue);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.btn-copy {
-  background: transparent;
-  border: none;
-  color: var(--gm-text-secondary);
-  cursor: pointer;
-  padding: 4px;
-  display: grid;
-  place-items: center;
-  transition: color 0.2s;
-}
-
-.btn-copy:hover {
-  color: var(--gm-text);
-}
-
-.copied-tag {
-  font-size: 12px;
-  color: #81c995;
-  font-weight: 600;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.btn-join-modal {
-  height: 40px;
-  padding: 0 20px;
-  background: var(--gm-blue-primary);
-  border: none;
-  border-radius: var(--gm-radius-sm);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-join-modal:hover {
-  background: var(--gm-blue-hover);
-}
-
 /* ==========================================================================
-   Meeting Workspace UI
+   Meeting Workspace UI - Clean, Real, No Fake Logos
    ========================================================================== */
 .workspace {
   height: 100vh;
   display: grid;
-  grid-template-rows: 64px 1fr 88px;
+  grid-template-rows: 60px 1fr 80px;
   background: #1e1f20;
 }
 
-/* Workspace Top Bar */
 .meet-workspace-topbar {
   background: #1e1f20;
   border-bottom: 1px solid var(--gm-border);
@@ -842,22 +780,34 @@ button, input, select {
   padding: 0 24px;
 }
 
-.workspace-brand {
+.workspace-meeting-info {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.workspace-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--gm-text);
-}
-
 .workspace-code {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--gm-text);
+  letter-spacing: 0.03em;
+}
+
+.btn-copy-topbar {
+  background: transparent;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-sm);
   color: var(--gm-text-secondary);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-copy-topbar:hover {
+  background: var(--gm-surface-hover);
+  color: var(--gm-text);
 }
 
 .workspace-timer {
@@ -865,48 +815,43 @@ button, input, select {
   font-size: 14px;
   color: var(--gm-text-secondary);
   background: rgba(255, 255, 255, 0.05);
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: var(--gm-radius-full);
 }
 
-.trust-badge {
+.proctor-tool-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   border-radius: var(--gm-radius-full);
-  padding: 8px 16px;
+  padding: 6px 14px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.trust-badge.secure {
+.proctor-tool-badge.normal {
   background: rgba(52, 168, 83, 0.15);
-  border: 1px solid rgba(52, 168, 83, 0.4);
+  border: 1px solid rgba(52, 168, 83, 0.35);
   color: #81c995;
 }
 
-.trust-badge.threat-active {
+.proctor-tool-badge.threat-active {
   background: rgba(234, 67, 53, 0.2);
   border: 1px solid rgba(234, 67, 53, 0.5);
   color: #f28b82;
   animation: pulseAlert 1.5s infinite;
 }
 
-@keyframes pulseAlert {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); }
-  50% { box-shadow: 0 0 0 6px rgba(234, 67, 53, 0); }
-}
-
-.trust-indicator {
+.proctor-status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: currentColor;
 }
 
-/* Stage & Video Grid */
+/* Workspace Stage */
 .workspace-content {
   display: flex;
   min-height: 0;
@@ -919,25 +864,6 @@ button, input, select {
   flex-direction: column;
   padding: 20px;
   min-width: 0;
-}
-
-.stage-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.live-pill {
-  font-size: 11px;
-  font-weight: 700;
-  color: #81c995;
-  letter-spacing: 0.05em;
-}
-
-.stage-session-name {
-  font-size: 12px;
-  color: var(--gm-text-secondary);
 }
 
 .video-grid {
@@ -998,7 +924,7 @@ button, input, select {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 24px 16px 12px;
+  padding: 20px 16px 10px;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
   display: flex;
   align-items: center;
@@ -1021,9 +947,75 @@ button, input, select {
   color: #f28b82;
 }
 
-/* Guard Panel Sidebar */
+/* Real Waiting for Participants Card */
+.waiting-tile {
+  background: #28292c;
+  border: 1px dashed var(--gm-border);
+  border-radius: var(--gm-radius-md);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.waiting-content {
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.waiting-icon {
+  font-size: 36px;
+}
+
+.waiting-content h3 {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--gm-text);
+}
+
+.waiting-content p {
+  font-size: 13px;
+  color: var(--gm-text-secondary);
+  line-height: 1.4;
+}
+
+.waiting-link-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1f2022;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-sm);
+  padding: 6px 12px;
+  margin-top: 6px;
+}
+
+.waiting-link-box code {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--gm-blue);
+}
+
+.waiting-link-box button {
+  background: transparent;
+  border: none;
+  color: var(--gm-text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.waiting-link-box button:hover {
+  text-decoration: underline;
+}
+
+/* Proctor Sidebar Panel */
 .guard-panel {
-  width: 360px;
+  width: 350px;
   background: #242528;
   border-left: 1px solid var(--gm-border);
   display: flex;
@@ -1036,7 +1028,7 @@ button, input, select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 14px;
+  padding: 18px 20px 12px;
 }
 
 .guard-eyebrow {
@@ -1048,7 +1040,7 @@ button, input, select {
 }
 
 .guard-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--gm-text);
 }
@@ -1057,7 +1049,7 @@ button, input, select {
   background: transparent;
   border: none;
   color: var(--gm-text-secondary);
-  font-size: 24px;
+  font-size: 22px;
   cursor: pointer;
 }
 
@@ -1071,8 +1063,8 @@ button, input, select {
   background: transparent;
   border: none;
   color: var(--gm-text-secondary);
-  padding: 12px 10px;
-  font-size: 13px;
+  padding: 10px 10px;
+  font-size: 12px;
   font-weight: 500;
   border-bottom: 2px solid transparent;
   cursor: pointer;
@@ -1085,17 +1077,17 @@ button, input, select {
 }
 
 .guard-body {
-  padding: 20px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .status-card {
   background: rgba(52, 168, 83, 0.12);
   border: 1px solid rgba(52, 168, 83, 0.3);
   border-radius: var(--gm-radius-sm);
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1124,7 +1116,7 @@ button, input, select {
 .pulse-red { background: #ea4335; animation: pulseAlert 1s infinite; }
 
 .status-card span {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--gm-text-secondary);
 }
 
@@ -1132,7 +1124,7 @@ button, input, select {
   background: #2d2023;
   border: 1px solid rgba(234, 67, 53, 0.4);
   border-radius: var(--gm-radius-sm);
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1146,15 +1138,15 @@ button, input, select {
 }
 
 .incident h3 {
-  font-size: 15px;
+  font-size: 14px;
   color: #fff;
 }
 
 .incident dl {
   display: grid;
-  grid-template-columns: 70px 1fr;
-  gap: 6px;
-  font-size: 12px;
+  grid-template-columns: 65px 1fr;
+  gap: 5px;
+  font-size: 11px;
 }
 
 .incident dt { color: var(--gm-text-secondary); }
@@ -1162,13 +1154,13 @@ button, input, select {
 .incident dd code { font-family: var(--font-mono); color: #f28b82; }
 
 .btn-terminate-threat {
-  margin-top: 8px;
-  height: 38px;
+  margin-top: 6px;
+  height: 36px;
   background: var(--gm-red);
   border: none;
   border-radius: var(--gm-radius-sm);
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
@@ -1181,24 +1173,24 @@ button, input, select {
 .checks-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .check-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: #2b2c2f;
   border-radius: var(--gm-radius-sm);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .check-item.ok .check-icon { color: #81c995; font-weight: bold; }
 .check-item.fail .check-icon { color: #ea4335; font-weight: bold; }
 
 .check-val {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--gm-text-secondary);
 }
 
@@ -1209,17 +1201,17 @@ button, input, select {
 }
 
 .logs-container {
-  max-height: 280px;
+  max-height: 260px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .log-entry {
   font-family: var(--font-mono);
   font-size: 11px;
-  padding: 6px 8px;
+  padding: 5px 8px;
   background: #2b2c2f;
   border-radius: 4px;
   display: flex;
@@ -1234,17 +1226,17 @@ button, input, select {
   background: transparent;
   border: none;
   color: var(--gm-text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
 }
 
 .btn-export-audit {
-  height: 40px;
+  height: 38px;
   background: #35363a;
   border: 1px solid var(--gm-border);
   border-radius: var(--gm-radius-sm);
   color: var(--gm-text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
@@ -1257,15 +1249,15 @@ button, input, select {
 .summary-card {
   background: #2b2c2f;
   border-radius: var(--gm-radius-sm);
-  padding: 12px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .summary-card span { font-size: 11px; color: var(--gm-text-secondary); }
-.summary-card b { font-size: 14px; color: var(--gm-text); }
-.summary-card small { font-size: 12px; color: var(--gm-text-muted); }
+.summary-card b { font-size: 13px; color: var(--gm-text); }
+.summary-card small { font-size: 11px; color: var(--gm-text-muted); }
 
 /* Floating Controls Dock */
 .meet-dock {
@@ -1278,7 +1270,7 @@ button, input, select {
 }
 
 .dock-left {
-  min-width: 180px;
+  min-width: 160px;
 }
 
 .dock-user-info {
@@ -1333,7 +1325,7 @@ button, input, select {
 }
 
 .dock-right {
-  min-width: 180px;
+  min-width: 160px;
   display: flex;
   justify-content: flex-end;
 }
@@ -1356,13 +1348,11 @@ button, input, select {
   color: var(--gm-text);
 }
 
-/* ==========================================================================
-   Responsive Adaptations
-   ========================================================================== */
+/* Responsive */
 @media (max-width: 992px) {
   .meet-main-grid {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 36px;
     padding: 36px 20px;
   }
   
@@ -1371,7 +1361,7 @@ button, input, select {
   }
 
   .meet-hero-title {
-    font-size: 34px;
+    font-size: 32px;
   }
   
   .meet-hero-right {
@@ -1381,8 +1371,8 @@ button, input, select {
   .guard-panel {
     position: absolute;
     right: 0;
-    top: 64px;
-    bottom: 88px;
+    top: 60px;
+    bottom: 80px;
     z-index: 50;
     box-shadow: -8px 0 24px rgba(0, 0, 0, 0.5);
   }

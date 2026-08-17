@@ -4,45 +4,67 @@ const auditController = require('../controllers/auditController');
 const sessionController = require('../controllers/sessionController');
 const authController = require('../controllers/authController');
 
+function setCorsHeaders(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+}
+
 function handleApiRoutes(req, res) {
-    // Intercept all /api/ endpoints to prevent static file fallthrough
-    if (req.url.startsWith('/api/')) {
-        if (req.url === '/api/auth/google/status' && req.method === 'GET') { authController.status(req, res); return true; }
-        if (req.url === '/api/auth/google' && req.method === 'GET') { authController.startGoogle(req, res); return true; }
-        if (req.url.startsWith('/api/auth/google/callback') && req.method === 'GET') { authController.googleCallback(req, res); return true; }
-        if (req.url === '/api/auth/me' && req.method === 'GET') { authController.me(req, res); return true; }
-        if (req.url === '/api/auth/logout' && (req.method === 'POST' || req.method === 'GET')) { authController.logout(req, res); return true; }
-        // 1. Session Verification & Authentication
-        if (req.url === '/api/session/verify' && req.method === 'POST') {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const pathname = parsedUrl.pathname;
+
+    // Handle CORS preflight
+    if (pathname.startsWith('/api/') && req.method === 'OPTIONS') {
+        setCorsHeaders(req, res);
+        res.writeHead(204);
+        res.end();
+        return true;
+    }
+
+    // Intercept all /api/ endpoints
+    if (pathname.startsWith('/api/')) {
+        setCorsHeaders(req, res);
+
+        // Auth routes
+        if (pathname === '/api/auth/google/status' && req.method === 'GET') { authController.status(req, res); return true; }
+        if (pathname === '/api/auth/google' && req.method === 'GET') { authController.startGoogle(req, res); return true; }
+        if (pathname.startsWith('/api/auth/google/callback') && req.method === 'GET') { authController.googleCallback(req, res); return true; }
+        if (pathname === '/api/auth/me' && req.method === 'GET') { authController.me(req, res); return true; }
+        if (pathname === '/api/auth/logout' && (req.method === 'POST' || req.method === 'GET')) { authController.logout(req, res); return true; }
+
+        // Session Verification & Creation
+        if (pathname === '/api/session/verify' && req.method === 'POST') {
             sessionController.verifySessionAccess(req, res);
             return true;
         }
 
-        if (req.url === '/api/session/create' && req.method === 'POST') {
+        if (pathname === '/api/session/create' && req.method === 'POST') {
             sessionController.createSession(req, res);
             return true;
         }
 
-        // 2. Real-Time Watchdog SSE Stream
-        if (req.url === '/api/telemetry/stream') {
+        // Real-Time Watchdog SSE Stream
+        if (pathname === '/api/telemetry/stream') {
             telemetryController.streamTelemetry(req, res);
             return true;
         }
 
-        // 3. Health & Status
-        if (req.url === '/api/status' && req.method === 'GET') {
+        // Health & Status
+        if (pathname === '/api/status' && req.method === 'GET') {
             telemetryController.getStatus(req, res);
             return true;
         }
 
-        // 4. Kill Threat
-        if (req.url === '/api/threat/kill' && req.method === 'POST') {
+        // Kill Threat Process
+        if (pathname === '/api/threat/kill' && req.method === 'POST') {
             threatController.killThreat(req, res);
             return true;
         }
 
-        // 5. Save Audit Report
-        if (req.url === '/api/audit/save' && req.method === 'POST') {
+        // Save Audit Report
+        if (pathname === '/api/audit/save' && req.method === 'POST') {
             auditController.exportAuditReport(req, res);
             return true;
         }
