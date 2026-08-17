@@ -63,7 +63,9 @@ class SessionController {
                 const { roomId, user } = JSON.parse(body || '{}');
                 const cookies = parseCookies(req.headers.cookie);
                 const authUser = googleAuthService.getSession(cookies.securemeet_auth);
-                const effectiveUser = { ...(user || {}), ...(authUser || {}) };
+                // Keep the frontend tabClientId as the canonical id; only fill in
+                // name/email/picture from the authenticated Google session if present.
+                const effectiveUser = { ...(authUser || {}), ...(user || {}) };
 
                 const result = meetingRoomService.joinRoom(roomId, effectiveUser);
                 res.writeHead(200, { 'Content-Type': 'application/json' });

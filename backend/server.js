@@ -55,6 +55,18 @@ const server = http.createServer((req, res) => {
 // Start Native Watchdog Service
 nativeWatchdogService.start();
 
+server.on('error', err => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`\n❌ Port ${config.PORT} is already in use.`);
+        console.error(`   Run this to free it:\n   for /f "tokens=5" %a in ('netstat -ano ^| findstr :${config.PORT}') do taskkill /PID %a /F\n`);
+        process.exit(1);
+    } else {
+        throw err;
+    }
+});
+
+process.on('SIGINT', () => { server.close(() => process.exit(0)); });
+
 server.listen(config.PORT, config.HOST, () => {
     console.log(`=============================================================`);
     console.log(`  🛡️  SecureMeet: Enterprise MVC Proctoring Platform        `);

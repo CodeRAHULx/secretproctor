@@ -1,50 +1,50 @@
+/**
+ * Session Model
+ * Defines meeting session lifecycles, configuration, and access controls
+ */
+
 class SessionModel {
-    constructor(sessionId = 'tech-interview-live-892', candidateName = 'John Doe') {
-        this.sessionId = sessionId;
-        this.candidateName = candidateName;
-        this.startTime = new Date().toISOString();
-        this.trustScore = 100;
-        this.status = 'CLEAN';
-        this.incidentLogs = [];
-        this.detectedThreatsHistory = [];
-    }
-
-    logIncident(message, type = 'system', metadata = {}) {
-        const incident = {
-            id: `inc_${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            type,
-            message,
-            metadata
+    constructor(data = {}) {
+        this.sessionId = data.sessionId || this.generateSessionId();
+        this.title = data.title || 'Secure Technical Evaluation';
+        this.passcode = data.passcode || '';
+        this.candidateName = data.candidateName || 'Candidate';
+        this.createdBy = data.createdBy || null;
+        this.status = data.status || 'ACTIVE'; // ACTIVE, COMPLETED, CANCELLED
+        this.createdAt = data.createdAt || new Date().toISOString();
+        this.updatedAt = data.updatedAt || new Date().toISOString();
+        this.settings = {
+            proctoringEnabled: data.settings?.proctoringEnabled ?? true,
+            tabSwitchDetection: data.settings?.tabSwitchDetection ?? true,
+            clipboardGuards: data.settings?.clipboardGuards ?? true,
+            aiTranslationEnabled: data.settings?.aiTranslationEnabled ?? true,
+            requireHostAdmission: data.settings?.requireHostAdmission ?? true,
+            ...data.settings
         };
-        this.incidentLogs.push(incident);
-
-        if (type === 'alert') {
-            this.trustScore = Math.max(0, this.trustScore - 40);
-            this.status = 'COMPROMISED';
-        } else if (type === 'warning') {
-            this.trustScore = Math.max(0, this.trustScore - 15);
-        }
-
-        return incident;
     }
 
-    addThreat(threat) {
-        this.detectedThreatsHistory.push(threat);
-        this.logIncident(`CRITICAL: Evasion process detected: ${threat.path} (PID: ${threat.pid})`, 'alert', threat);
+    generateSessionId() {
+        const chars = 'abcdefghijklmnopqrstuvwxyz';
+        const seg = (len) => Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+        return `${seg(3)}-${seg(4)}-${seg(3)}`;
     }
 
-    exportForensicReport() {
+    verifyPasscode(inputPasscode) {
+        if (!this.passcode) return true;
+        return this.passcode.trim() === (inputPasscode || '').trim();
+    }
+
+    toJSON() {
         return {
             sessionId: this.sessionId,
+            title: this.title,
+            passcodeRequired: Boolean(this.passcode),
             candidateName: this.candidateName,
-            startTime: this.startTime,
-            exportedAt: new Date().toISOString(),
-            finalTrustScore: `${this.trustScore}%`,
-            sessionStatus: this.status,
-            totalIncidents: this.incidentLogs.length,
-            threatsSummary: this.detectedThreatsHistory,
-            fullAuditLog: this.incidentLogs
+            createdBy: this.createdBy,
+            status: this.status,
+            createdAt: this.createdAt,
+            updatedAt: this.updatedAt,
+            settings: this.settings
         };
     }
 }

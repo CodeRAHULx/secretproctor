@@ -3,6 +3,7 @@ const threatController = require('../controllers/threatController');
 const auditController = require('../controllers/auditController');
 const sessionController = require('../controllers/sessionController');
 const authController = require('../controllers/authController');
+const aiController = require('../controllers/aiController');
 
 function setCorsHeaders(req, res) {
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -27,81 +28,80 @@ function handleApiRoutes(req, res) {
     if (pathname.startsWith('/api/')) {
         setCorsHeaders(req, res);
 
-        // Auth routes
-        if (pathname === '/api/auth/google/status' && req.method === 'GET') { authController.status(req, res); return true; }
-        if (pathname === '/api/auth/google' && req.method === 'GET') { authController.startGoogle(req, res); return true; }
-        if (pathname.startsWith('/api/auth/google/callback') && req.method === 'GET') { authController.googleCallback(req, res); return true; }
-        if (pathname === '/api/auth/me' && req.method === 'GET') { authController.me(req, res); return true; }
-        if (pathname === '/api/auth/logout' && (req.method === 'POST' || req.method === 'GET')) { authController.logout(req, res); return true; }
+        // ── Auth ──────────────────────────────────────────────────────────────
+        if (pathname === '/api/auth/google/status' && req.method === 'GET') {
+            authController.status(req, res); return true;
+        }
+        if (pathname === '/api/auth/google' && req.method === 'GET') {
+            authController.startGoogle(req, res); return true;
+        }
+        if (pathname.startsWith('/api/auth/google/callback') && req.method === 'GET') {
+            authController.googleCallback(req, res); return true;
+        }
+        if (pathname === '/api/auth/me' && req.method === 'GET') {
+            authController.me(req, res); return true;
+        }
+        if (pathname === '/api/auth/logout' && (req.method === 'POST' || req.method === 'GET')) {
+            authController.logout(req, res); return true;
+        }
 
-        // Session & Room Endpoints
+        // ── Session & Room ────────────────────────────────────────────────────
         if (pathname === '/api/session/verify' && req.method === 'POST') {
-            sessionController.verifySessionAccess(req, res);
-            return true;
+            sessionController.verifySessionAccess(req, res); return true;
         }
-
         if (pathname === '/api/session/create' && req.method === 'POST') {
-            sessionController.createSession(req, res);
-            return true;
+            sessionController.createSession(req, res); return true;
         }
-
         if (pathname === '/api/room/join' && req.method === 'POST') {
-            sessionController.joinRoom(req, res);
-            return true;
+            sessionController.joinRoom(req, res); return true;
         }
-
         if (pathname === '/api/room/events' && req.method === 'GET') {
-            sessionController.roomEvents(req, res);
-            return true;
+            sessionController.roomEvents(req, res); return true;
         }
-
         if (pathname === '/api/room/admit' && req.method === 'POST') {
-            sessionController.admitGuest(req, res);
-            return true;
+            sessionController.admitGuest(req, res); return true;
         }
-
         if (pathname === '/api/room/signal' && req.method === 'POST') {
-            sessionController.sendSignal(req, res);
-            return true;
+            sessionController.sendSignal(req, res); return true;
         }
-
         if (pathname === '/api/room/chat' && req.method === 'POST') {
-            sessionController.sendChat(req, res);
-            return true;
+            sessionController.sendChat(req, res); return true;
         }
-
         if (pathname === '/api/room/leave' && req.method === 'POST') {
-            sessionController.leaveRoom(req, res);
-            return true;
+            sessionController.leaveRoom(req, res); return true;
         }
 
-        // Real-Time Watchdog SSE Stream
+        // ── AI Features ───────────────────────────────────────────────────────
+        if (pathname === '/api/ai/translate' && req.method === 'POST') {
+            aiController.translate(req, res); return true;
+        }
+        if (pathname === '/api/ai/memo' && req.method === 'POST') {
+            aiController.memo(req, res); return true;
+        }
+        if (pathname === '/api/ai/suggest' && req.method === 'POST') {
+            aiController.suggest(req, res); return true;
+        }
+        if (pathname === '/api/ai/status' && req.method === 'GET') {
+            aiController.status(req, res); return true;
+        }
+
+        // ── Proctor & Forensics ───────────────────────────────────────────────
         if (pathname === '/api/telemetry/stream') {
-            telemetryController.streamTelemetry(req, res);
-            return true;
+            telemetryController.streamTelemetry(req, res); return true;
         }
-
-        // Health & Status
         if (pathname === '/api/status' && req.method === 'GET') {
-            telemetryController.getStatus(req, res);
-            return true;
+            telemetryController.getStatus(req, res); return true;
         }
-
-        // Kill Threat Process
         if (pathname === '/api/threat/kill' && req.method === 'POST') {
-            threatController.killThreat(req, res);
-            return true;
+            threatController.killThreat(req, res); return true;
         }
-
-        // Save Audit Report
         if (pathname === '/api/audit/save' && req.method === 'POST') {
-            auditController.exportAuditReport(req, res);
-            return true;
+            auditController.exportAuditReport(req, res); return true;
         }
 
-        // Default 404 for unknown API endpoints
+        // 404 for unknown /api/ paths
         res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'API endpoint not found' }));
+        res.end(JSON.stringify({ error: `API endpoint not found: ${pathname}` }));
         return true;
     }
 

@@ -9,7 +9,7 @@ export const api = {
   currentUser: () => request('/api/auth/me'),
   googleStatus: () => request('/api/auth/google/status'),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
-  
+
   createMeeting: (body = {}) => request('/api/session/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -20,7 +20,7 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }),
-  
+
   // Room Management & WebRTC Signaling
   joinRoom: (body) => request('/api/room/join', {
     method: 'POST',
@@ -43,6 +43,18 @@ export const api = {
     body: JSON.stringify(body)
   }),
   leaveRoom: (body) => request('/api/room/leave', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+
+  // AI Features: Translate & Summarize
+  aiTranslate: (body) => request('/api/ai/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  aiMemo: (body) => request('/api/ai/memo', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
