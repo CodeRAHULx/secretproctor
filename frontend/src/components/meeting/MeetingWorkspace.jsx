@@ -11,7 +11,7 @@ const formatElapsed = seconds => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-function VideoTile({ name, initials, picture, stream, muted, threatened }) {
+function VideoTile({ name, initials, picture, stream, muted, threatened, isLocal = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ function VideoTile({ name, initials, picture, stream, muted, threatened }) {
   return (
     <article className={`video-tile ${threatened ? 'threatened' : ''}`}>
       {stream ? (
-        <video ref={videoRef} autoPlay playsInline muted />
+        <video ref={videoRef} autoPlay playsInline muted={isLocal} />
       ) : (
         <div className="avatar-placeholder">
           {picture ? (
@@ -34,7 +34,7 @@ function VideoTile({ name, initials, picture, stream, muted, threatened }) {
         </div>
       )}
       <footer className="tile-footer">
-        <span className="tile-name">{name}</span>
+        <span className="tile-name">{name} {isLocal && '(You)'}</span>
         <span className={`tile-mic-badge ${muted ? 'off' : 'on'}`}>
           {muted ? 'Mic off' : 'Mic on'}
         </span>
@@ -43,11 +43,71 @@ function VideoTile({ name, initials, picture, stream, muted, threatened }) {
   );
 }
 
+function InCallChat({ messages, onSendMessage }) {
+  const [text, setText] = useState('');
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    onSendMessage(text.trim());
+    setText('');
+  };
+
+  return (
+    <div className="chat-panel">
+      <div className="chat-header">
+        <h3>In-call messages</h3>
+        <p>Messages can be seen only by people in the call.</p>
+      </div>
+
+      <div className="chat-messages-list">
+        {messages.length === 0 ? (
+          <div className="empty-chat">No messages yet. Send a message to start the conversation.</div>
+        ) : (
+          messages.map(msg => (
+            <div className="chat-msg-item" key={msg.id}>
+              <div className="chat-msg-header">
+                <span className="chat-sender">{msg.senderName}</span>
+                <time className="chat-time">{msg.timestamp}</time>
+              </div>
+              <p className="chat-text">{msg.text}</p>
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <form className="chat-input-form" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          className="chat-input"
+          placeholder="Send a message to everyone"
+          value={text}
+          onChange={e => setText(e.target.value)}
+        />
+        <button type="submit" className="btn-send-chat" disabled={!text.trim()} title="Send message">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export function MeetingWorkspace({ meeting }) {
-  const [guardOpen, setGuardOpen] = useState(false);
-  const [tab, setTab] = useState('detection');
+  const [activeSidebar, setActiveSidebar] = useState(null); // 'guard' | 'chat' | 'people' | null
+  const [guardTab, setGuardTab] = useState('detection');
   const [linkCopied, setLinkCopied] = useState(false);
   const threat = meeting.threats[0];
+
+  const remotePeerIds = Object.keys(meeting.remoteStreams);
+  const hasRemotePeers = remotePeerIds.length > 0;
 
   const copyRoomLink = () => {
     const url = `${window.location.origin}/?room=${meeting.session.sessionId}`;
@@ -58,7 +118,7 @@ export function MeetingWorkspace({ meeting }) {
 
   return (
     <main className="workspace">
-      {/* Top Header - Clean, No Fake Logos */}
+      {/* Top Header */}
       <header className="meet-workspace-topbar">
         <div className="topbar-left">
           <div className="workspace-meeting-info">
@@ -74,11 +134,14 @@ export function MeetingWorkspace({ meeting }) {
         </div>
 
         <div className="topbar-right">
-          {/* Proctor Tool Status */}
+          {/* Proctor Watchdog Badge */}
           <button
             className={`proctor-tool-badge ${threat ? 'threat-active' : 'normal'}`}
-            onClick={() => { setGuardOpen(!guardOpen); setTab('detection'); }}
-            title="Click to view Proctoring Watchdog Telemetry"
+            onClick={() => {
+              setActiveSidebar(activeSidebar === 'guard' ? null : 'guard');
+              setGuardTab('detection');
+            }}
+            title="Proctoring Watchdog Telemetry"
           >
             <span className="proctor-status-dot" />
             <span>{threat ? 'Threat Detected' : 'Proctor Active'}</span>
@@ -87,11 +150,11 @@ export function MeetingWorkspace({ meeting }) {
         </div>
       </header>
 
-      {/* Main Video & Proctor Layout */}
+      {/* Main Video Stage & Sidebar Layout */}
       <section className="workspace-content">
         <div className="stage-area">
-          <div className="video-grid">
-            {/* Local Participant Video Tile */}
+          <div className={`video-grid ${hasRemotePeers ? 'multi-peer' : ''}`}>
+            {/* Local Video Tile */}
             <VideoTile
               name={meeting.session.participantName || meeting.identity?.name || 'You'}
               initials={meeting.initials}
@@ -99,36 +162,107 @@ export function MeetingWorkspace({ meeting }) {
               stream={meeting.stream}
               muted={!meeting.media.mic}
               threatened={Boolean(threat)}
+              isLocal={true}
             />
 
-            {/* Waiting for participant tile */}
-            <div className="waiting-tile">
-              <div className="waiting-content">
-                <div className="waiting-icon">👥</div>
-                <h3>You're the only one here</h3>
-                <p>Share this meeting link with others to let them join:</p>
-                <div className="waiting-link-box">
-                  <code>{meeting.session.sessionId}</code>
-                  <button onClick={copyRoomLink}>
-                    {linkCopied ? '✓ Copied' : 'Copy link'}
-                  </button>
+            {/* Remote WebRTC Peer Video Tiles */}
+            {hasRemotePeers ? (
+              remotePeerIds.map(peerId => {
+                const participant = meeting.participants.find(p => p.id === peerId);
+                const peerName = participant?.name || 'Remote Participant';
+                const peerInitials = peerName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                return (
+                  <VideoTile
+                    key={peerId}
+                    name={peerName}
+                    initials={peerInitials}
+                    picture={participant?.picture}
+                    stream={meeting.remoteStreams[peerId]}
+                    muted={false}
+                    threatened={false}
+                    isLocal={false}
+                  />
+                );
+              })
+            ) : (
+              /* Waiting for others tile */
+              <div className="waiting-tile">
+                <div className="waiting-content">
+                  <div className="waiting-icon">👥</div>
+                  <h3>You're the only one here</h3>
+                  <p>Share this meeting link with others to let them join:</p>
+                  <div className="waiting-link-box">
+                    <code>{meeting.session.sessionId}</code>
+                    <button onClick={copyRoomLink}>
+                      {linkCopied ? '✓ Copied' : 'Copy link'}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Proctoring / Integrity Guard Sidebar */}
-        {guardOpen && (
+        {/* Sidebar: In-Call Chat */}
+        {activeSidebar === 'chat' && (
+          <aside className="sidebar-drawer">
+            <div className="sidebar-drawer-header">
+              <span className="sidebar-drawer-title">Chat</span>
+              <button className="btn-close-drawer" onClick={() => setActiveSidebar(null)}>×</button>
+            </div>
+            <InCallChat
+              messages={meeting.messages}
+              onSendMessage={meeting.sendChatMessage}
+            />
+          </aside>
+        )}
+
+        {/* Sidebar: Proctor Guard */}
+        {activeSidebar === 'guard' && (
           <SecurityPanel
-            tab={tab}
-            setTab={setTab}
+            tab={guardTab}
+            setTab={setGuardTab}
             threat={threat}
             meeting={meeting}
-            onClose={() => setGuardOpen(false)}
+            onClose={() => setActiveSidebar(null)}
           />
         )}
       </section>
+
+      {/* Floating Admission Toast for Host */}
+      {meeting.knockRequests.length > 0 && (
+        <div className="admission-toast-container">
+          {meeting.knockRequests.map(guest => (
+            <div className="admission-toast" key={guest.id}>
+              <div className="guest-info">
+                {guest.picture ? (
+                  <img src={guest.picture} alt={guest.name} className="guest-img" />
+                ) : (
+                  <div className="guest-initial">{(guest.name || 'G')[0].toUpperCase()}</div>
+                )}
+                <div>
+                  <div className="guest-name">{guest.name}</div>
+                  <div className="guest-email">wants to join this call</div>
+                </div>
+              </div>
+              <div className="admission-actions">
+                <button
+                  className="btn-deny-entry"
+                  onClick={() => meeting.admitGuest(guest.id, 'deny')}
+                >
+                  Deny
+                </button>
+                <button
+                  className="btn-admit-entry"
+                  onClick={() => meeting.admitGuest(guest.id, 'admit')}
+                >
+                  Admit
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Bottom Floating Control Dock */}
       <footer className="meet-dock">
@@ -184,18 +318,29 @@ export function MeetingWorkspace({ meeting }) {
             </svg>
           </button>
 
-          {/* Proctor Panel Toggle */}
+          {/* Chat Drawer Toggle */}
           <button
-            className={`dock-btn ${guardOpen ? 'active' : ''}`}
-            onClick={() => setGuardOpen(!guardOpen)}
-            title="Toggle Proctoring Watchdog Panel"
+            className={`dock-btn ${activeSidebar === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveSidebar(activeSidebar === 'chat' ? null : 'chat')}
+            title="In-call messages"
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+            </svg>
+          </button>
+
+          {/* Proctor Shield Drawer Toggle */}
+          <button
+            className={`dock-btn ${activeSidebar === 'guard' ? 'active' : ''}`}
+            onClick={() => setActiveSidebar(activeSidebar === 'guard' ? null : 'guard')}
+            title="Proctor Watchdog Panel"
           >
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
               <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
             </svg>
           </button>
 
-          {/* Leave Meeting */}
+          {/* End Call */}
           <button
             className="dock-btn end-call"
             onClick={meeting.leaveMeeting}
@@ -210,7 +355,7 @@ export function MeetingWorkspace({ meeting }) {
         <div className="dock-right">
           <button
             className="dock-icon-btn"
-            onClick={() => setGuardOpen(!guardOpen)}
+            onClick={() => setActiveSidebar(activeSidebar === 'guard' ? null : 'guard')}
             title="Proctoring Details"
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">

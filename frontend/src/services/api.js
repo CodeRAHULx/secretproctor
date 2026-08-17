@@ -9,6 +9,7 @@ export const api = {
   currentUser: () => request('/api/auth/me'),
   googleStatus: () => request('/api/auth/google/status'),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
+  
   createMeeting: (body = {}) => request('/api/session/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -19,6 +20,35 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }),
+  
+  // Room Management & WebRTC Signaling
+  joinRoom: (body) => request('/api/room/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  admitGuest: (body) => request('/api/room/admit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  sendSignal: (body) => request('/api/room/signal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  sendChat: (body) => request('/api/room/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  leaveRoom: (body) => request('/api/room/leave', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+
+  // Proctoring & Forensics
   saveAudit: (body) => request('/api/audit/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

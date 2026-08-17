@@ -34,7 +34,7 @@ function handleApiRoutes(req, res) {
         if (pathname === '/api/auth/me' && req.method === 'GET') { authController.me(req, res); return true; }
         if (pathname === '/api/auth/logout' && (req.method === 'POST' || req.method === 'GET')) { authController.logout(req, res); return true; }
 
-        // Session Verification & Creation
+        // Session & Room Endpoints
         if (pathname === '/api/session/verify' && req.method === 'POST') {
             sessionController.verifySessionAccess(req, res);
             return true;
@@ -42,6 +42,36 @@ function handleApiRoutes(req, res) {
 
         if (pathname === '/api/session/create' && req.method === 'POST') {
             sessionController.createSession(req, res);
+            return true;
+        }
+
+        if (pathname === '/api/room/join' && req.method === 'POST') {
+            sessionController.joinRoom(req, res);
+            return true;
+        }
+
+        if (pathname === '/api/room/events' && req.method === 'GET') {
+            sessionController.roomEvents(req, res);
+            return true;
+        }
+
+        if (pathname === '/api/room/admit' && req.method === 'POST') {
+            sessionController.admitGuest(req, res);
+            return true;
+        }
+
+        if (pathname === '/api/room/signal' && req.method === 'POST') {
+            sessionController.sendSignal(req, res);
+            return true;
+        }
+
+        if (pathname === '/api/room/chat' && req.method === 'POST') {
+            sessionController.sendChat(req, res);
+            return true;
+        }
+
+        if (pathname === '/api/room/leave' && req.method === 'POST') {
+            sessionController.leaveRoom(req, res);
             return true;
         }
 

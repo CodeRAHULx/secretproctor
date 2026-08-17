@@ -72,6 +72,76 @@ button, input, select {
   to { transform: rotate(360deg); }
 }
 
+/* Waiting Room Screen (Knocking for Host Admission) */
+.waiting-room-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 30%, #2a2b2e, #1a1a1c 85%);
+  padding: 24px;
+}
+
+.waiting-room-card {
+  width: 100%;
+  max-width: 440px;
+  background: #28292c;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-lg);
+  padding: 48px 36px;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.waiting-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgba(138, 180, 248, 0.2);
+  border-top-color: var(--gm-blue);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin-bottom: 8px;
+}
+
+.denied-icon {
+  font-size: 44px;
+  margin-bottom: 8px;
+}
+
+.waiting-room-card h2 {
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--gm-text);
+}
+
+.waiting-room-card p {
+  font-size: 14px;
+  color: var(--gm-text-secondary);
+  line-height: 1.5;
+}
+
+.btn-cancel-waiting {
+  margin-top: 12px;
+  height: 42px;
+  padding: 0 24px;
+  background: transparent;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-full);
+  color: var(--gm-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancel-waiting:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* Sign In Screen */
 .signin-container {
   min-height: 100vh;
@@ -762,7 +832,7 @@ button, input, select {
 }
 
 /* ==========================================================================
-   Meeting Workspace UI - Clean, Real, No Fake Logos
+   Meeting Workspace UI
    ========================================================================== */
 .workspace {
   height: 100vh;
@@ -844,6 +914,11 @@ button, input, select {
   animation: pulseAlert 1.5s infinite;
 }
 
+@keyframes pulseAlert {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(234, 67, 53, 0); }
+}
+
 .proctor-status-dot {
   width: 8px;
   height: 8px;
@@ -856,13 +931,14 @@ button, input, select {
   display: flex;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .stage-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 16px;
   min-width: 0;
 }
 
@@ -872,6 +948,10 @@ button, input, select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   min-height: 0;
+}
+
+.video-grid.multi-peer {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
 }
 
 .video-tile {
@@ -947,7 +1027,7 @@ button, input, select {
   color: #f28b82;
 }
 
-/* Real Waiting for Participants Card */
+/* Waiting Tile */
 .waiting-tile {
   background: #28292c;
   border: 1px dashed var(--gm-border);
@@ -1013,7 +1093,256 @@ button, input, select {
   text-decoration: underline;
 }
 
-/* Proctor Sidebar Panel */
+/* Sidebar Drawers (Chat & Guard) */
+.sidebar-drawer {
+  width: 350px;
+  background: #242528;
+  border-left: 1px solid var(--gm-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  animation: slideInRight 0.2s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.sidebar-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gm-border);
+}
+
+.sidebar-drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gm-text);
+}
+
+.btn-close-drawer {
+  background: transparent;
+  border: none;
+  color: var(--gm-text-secondary);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+/* In-Call Chat Panel */
+.chat-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat-header {
+  padding: 16px 20px 10px;
+  background: #222326;
+  border-bottom: 1px solid var(--gm-border);
+}
+
+.chat-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gm-text);
+  margin-bottom: 4px;
+}
+
+.chat-header p {
+  font-size: 11px;
+  color: var(--gm-text-secondary);
+}
+
+.chat-messages-list {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.empty-chat {
+  font-size: 13px;
+  color: var(--gm-text-muted);
+  text-align: center;
+  margin-top: 40px;
+}
+
+.chat-msg-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-msg-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.chat-sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gm-blue);
+}
+
+.chat-time {
+  font-size: 10px;
+  color: var(--gm-text-muted);
+}
+
+.chat-text {
+  font-size: 13px;
+  color: var(--gm-text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.chat-input-form {
+  padding: 12px 16px;
+  border-top: 1px solid var(--gm-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #202124;
+}
+
+.chat-input {
+  flex: 1;
+  height: 40px;
+  background: #2d2e31;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-full);
+  padding: 0 16px;
+  font-size: 13px;
+  color: var(--gm-text);
+  outline: none;
+}
+
+.chat-input:focus {
+  border-color: var(--gm-blue);
+}
+
+.btn-send-chat {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--gm-blue-primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-send-chat:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Floating Admission Toast */
+.admission-toast-container {
+  position: absolute;
+  bottom: 96px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 150;
+}
+
+.admission-toast {
+  background: #2d2e31;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-md);
+  padding: 14px 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: fadeInDown 0.2s ease-out;
+}
+
+.guest-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guest-img, .guest-initial {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.guest-initial {
+  background: #1a73e8;
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.guest-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gm-text);
+}
+
+.guest-email {
+  font-size: 11px;
+  color: var(--gm-text-secondary);
+}
+
+.admission-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-deny-entry {
+  height: 32px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-full);
+  color: var(--gm-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-deny-entry:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.btn-admit-entry {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--gm-blue-primary);
+  border: none;
+  border-radius: var(--gm-radius-full);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-admit-entry:hover {
+  background: var(--gm-blue-hover);
+}
+
+/* Proctor Guard Panel */
 .guard-panel {
   width: 350px;
   background: #242528;
@@ -1368,7 +1697,7 @@ button, input, select {
     display: none;
   }
 
-  .guard-panel {
+  .sidebar-drawer, .guard-panel {
     position: absolute;
     right: 0;
     top: 60px;
