@@ -81,8 +81,8 @@ export function MeetingWorkspace({ meeting }) {
         )}
       </section>
 
-      {/* Floating Admission Toast for Host */}
-      {meeting.knockRequests.length > 0 && (
+      {/* Floating Admission Toast — host only */}
+      {meeting.isHost && meeting.knockRequests.length > 0 && (
         <div className="admission-toast-container">
           {meeting.knockRequests.map((guest) => (
             <div className="admission-toast" key={guest.id}>

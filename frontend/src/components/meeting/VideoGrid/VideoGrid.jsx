@@ -3,47 +3,65 @@ import { VideoTile } from './VideoTile';
 import { WaitingTile } from './WaitingTile';
 import { ScreenShareView } from './ScreenShareView';
 
-export function VideoGrid({
-  meeting,
-  onCopyLink,
-  linkCopied
-}) {
+export function VideoGrid({ meeting, onCopyLink, linkCopied }) {
   const remotePeerIds = Object.keys(meeting.remoteStreams || {});
-  const hasRemotePeers = remotePeerIds.length > 0;
-  const threat = meeting.threats[0];
+  const threat = meeting.threats?.[0];
 
-  // If local or remote screen share is active, render ScreenShareView
-  if (meeting.screenStream) {
+  // Screen share logic — server-authoritative
+  const { screenShareOwner, tabClientId, amSharing } = meeting;
+  const someoneIsSharing = Boolean(screenShareOwner);
+  const remoteSharerStream = screenShareOwner && screenShareOwner !== tabClientId
+    ? meeting.remoteStreams?.[screenShareOwner]
+    : null;
+
+  // Show screen share layout when:
+  // (a) we are sharing our own screen, OR
+  // (b) a remote participant is sharing (and we received their stream)
+  if (someoneIsSharing && (amSharing || remoteSharerStream)) {
+    const shareStream = amSharing ? meeting.screenStream : remoteSharerStream;
+    const sharerParticipant = amSharing
+      ? { name: meeting.session?.participantName || 'You' }
+      : meeting.participants?.find((p) => p.id === screenShareOwner);
+    const presenterName = sharerParticipant?.name || 'Presenter';
+
     return (
       <ScreenShareView
-        screenStream={meeting.screenStream}
-        presenterName={meeting.session?.participantName || 'You'}
+        screenStream={shareStream}
+        presenterName={presenterName}
+        isLocal={amSharing}
         meeting={meeting}
       />
     );
   }
 
+  const hasRemotePeers = remotePeerIds.length > 0;
+  const gridClass = hasRemotePeers
+    ? `video-grid multi-peer peers-${remotePeerIds.length + 1}`
+    : 'video-grid solo';
+
   return (
-    <div className={`video-grid ${hasRemotePeers ? 'multi-peer' : ''}`}>
-      {/* Local Video Tile */}
+    <div className={gridClass}>
+      {/* Local video */}
       <VideoTile
         name={meeting.session?.participantName || meeting.identity?.name || 'You'}
         initials={meeting.initials}
         picture={meeting.identity?.picture}
         stream={meeting.stream}
-        muted={!meeting.media.mic}
-        camOff={!meeting.media.cam}
+        muted={!meeting.media?.mic}
+        camOff={!meeting.media?.cam}
         threatened={Boolean(threat)}
         isLocal={true}
+        isHost={meeting.isHost}
       />
 
-      {/* Remote WebRTC Peer Tiles */}
+      {/* Remote peers */}
       {hasRemotePeers ? (
         remotePeerIds.map((peerId) => {
-          const participant = meeting.participants.find((p) => p.id === peerId);
+          const participant = meeting.participants?.find((p) => p.id === peerId);
           const peerName = participant?.name || 'Participant';
           const peerInitials = peerName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
           const peerStream = meeting.remoteStreams[peerId];
+          const camOff = !peerStream || peerStream.getVideoTracks().every((t) => !t.enabled);
           return (
             <VideoTile
               key={peerId}
@@ -52,9 +70,10 @@ export function VideoGrid({
               picture={participant?.picture}
               stream={peerStream}
               muted={false}
-              camOff={!peerStream || peerStream.getVideoTracks().every((t) => !t.enabled)}
+              camOff={camOff}
               threatened={false}
               isLocal={false}
+              isHost={participant?.role === 'host'}
             />
           );
         })

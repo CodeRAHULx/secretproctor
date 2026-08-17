@@ -8,43 +8,48 @@ const parseCookies = header => Object.fromEntries((header || '').split(';').filt
     return [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1).trim())];
 }));
 
-class SessionController {
-    // Legacy verify endpoint for backwards compatibility
-    verifySessionAccess(req, res) {
+function readBody(req) {
+    return new Promise((resolve) => {
         let body = '';
         req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
+        req.on('end', () => resolve(body));
+    });
+}
+
+class SessionController {
+    // Legacy verify (backwards compat)
+    verifySessionAccess(req, res) {
+        readBody(req).then(body => {
             try {
                 const { sessionId, passcode, role, participantName } = JSON.parse(body || '{}');
                 const cookies = parseCookies(req.headers.cookie);
                 const user = googleAuthService.getSession(cookies.securemeet_auth);
-
                 const result = sessionManager.verifyAccess(sessionId, passcode, role, participantName, user);
-
-                if (result.authorized) {
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify(result));
-                } else {
-                    res.writeHead(403, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify(result));
-                }
-            } catch (err) {
+                res.writeHead(result.authorized ? 200 : 403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ authorized: false, error: 'Malformed request payload.' }));
+                res.end(JSON.stringify({ authorized: false, error: 'Bad request' }));
             }
         });
     }
 
     createSession(req, res) {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
+        readBody(req).then(body => {
             try {
                 const data = JSON.parse(body || '{}');
                 const cookies = parseCookies(req.headers.cookie);
                 const user = googleAuthService.getSession(cookies.securemeet_auth);
 
                 const session = sessionManager.createSession({ ...data, createdBy: user });
+
+                // ── KEY FIX: Reserve host slot for the creator BEFORE anyone joins ──
+                // The creator's ID comes from the frontend as data.creatorId
+                const creatorId = data.creatorId || user?.id;
+                if (creatorId) {
+                    meetingRoomService.reserveHost(session.sessionId, creatorId);
+                }
+
                 res.writeHead(201, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, session }));
             } catch (err) {
@@ -54,17 +59,13 @@ class SessionController {
         });
     }
 
-    // Modern Multi-Participant Room & Signaling Endpoints
     joinRoom(req, res) {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
+        readBody(req).then(body => {
             try {
                 const { roomId, user } = JSON.parse(body || '{}');
                 const cookies = parseCookies(req.headers.cookie);
                 const authUser = googleAuthService.getSession(cookies.securemeet_auth);
-                // Keep the frontend tabClientId as the canonical id; only fill in
-                // name/email/picture from the authenticated Google session if present.
+                // Frontend tabClientId is canonical; overlay with Google identity data
                 const effectiveUser = { ...(authUser || {}), ...(user || {}) };
 
                 const result = meetingRoomService.joinRoom(roomId, effectiveUser);
@@ -87,14 +88,11 @@ class SessionController {
             res.end(JSON.stringify({ error: 'Missing roomId or userId' }));
             return;
         }
-
         meetingRoomService.registerSSE(roomId, userId, res);
     }
 
     admitGuest(req, res) {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
+        readBody(req).then(body => {
             try {
                 const { roomId, guestId, action } = JSON.parse(body || '{}');
                 const result = meetingRoomService.admitGuest(roomId, guestId, action);
@@ -108,9 +106,7 @@ class SessionController {
     }
 
     sendSignal(req, res) {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
+        readBody(req).then(body => {
             try {
                 const { roomId, signal } = JSON.parse(body || '{}');
                 const result = meetingRoomService.sendSignal(roomId, signal);
@@ -124,9 +120,7 @@ class SessionController {
     }
 
     sendChat(req, res) {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
+        readBody(req).then(body => {
             try {
                 const { roomId, message } = JSON.parse(body || '{}');
                 const result = meetingRoomService.addMessage(roomId, message);
@@ -139,10 +133,22 @@ class SessionController {
         });
     }
 
+    screenShare(req, res) {
+        readBody(req).then(body => {
+            try {
+                const { roomId, userId, isSharing } = JSON.parse(body || '{}');
+                const result = meetingRoomService.setScreenShare(roomId, userId, isSharing);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
     leaveRoom(req, res) {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
+        readBody(req).then(body => {
             try {
                 const { roomId, userId } = JSON.parse(body || '{}');
                 meetingRoomService.leaveRoom(roomId, userId);

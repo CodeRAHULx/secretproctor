@@ -37,34 +37,45 @@ export function useMedia(onLog = () => {}) {
     if (!localStreamRef.current) return;
     const active = !media[kind];
     setMedia((old) => ({ ...old, [kind]: active }));
-    (kind === 'mic' ? localStreamRef.current.getAudioTracks() : localStreamRef.current.getVideoTracks()).forEach((t) => {
-      t.enabled = active;
-    });
+    (kind === 'mic'
+      ? localStreamRef.current.getAudioTracks()
+      : localStreamRef.current.getVideoTracks()
+    ).forEach((t) => { t.enabled = active; });
   }, [media]);
 
+  // Returns whether screen share started (true) or was already running (false = stopped)
   const toggleShare = useCallback(async () => {
     if (media.share) {
+      // Stop sharing
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((t) => t.stop());
         screenStreamRef.current = null;
       }
       setScreenStream(null);
       setMedia((old) => ({ ...old, share: false }));
-      return;
+      onLog('Screen sharing stopped.', 'info');
+      return false; // was sharing → now stopped
     }
+
     try {
-      const share = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const share = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       screenStreamRef.current = share;
       setScreenStream(share);
+
+      // Auto-stop when user clicks browser's "Stop sharing" button
       share.getVideoTracks()[0].onended = () => {
+        screenStreamRef.current = null;
         setScreenStream(null);
         setMedia((old) => ({ ...old, share: false }));
         onLog('Screen sharing ended.', 'info');
       };
+
       setMedia((old) => ({ ...old, share: true }));
       onLog('Screen sharing started.', 'info');
+      return true; // started sharing
     } catch {
       onLog('Screen sharing cancelled or denied.', 'warn');
+      return false;
     }
   }, [media.share, onLog]);
 
@@ -72,6 +83,7 @@ export function useMedia(onLog = () => {}) {
     media,
     stream,
     screenStream,
+    screenStreamRef,   // ← exposed so useMeeting can do track replacement
     localStreamRef,
     startMedia,
     stopMedia,

@@ -50,9 +50,9 @@ export function MeetingDock({
 
         {/* Present Screen Share */}
         <button
-          className={`dock-btn ${meeting.media.share ? 'active' : ''}`}
+          className={`dock-btn ${meeting.amSharing ? 'active' : ''}`}
           onClick={meeting.toggleShare}
-          title={meeting.media.share ? 'Stop presenting' : 'Present now'}
+          title={meeting.amSharing ? 'Stop presenting' : 'Present now'}
         >
           <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
             <path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6zm5 8l3-3 3 3h-2v2h-2v-2H9z" />

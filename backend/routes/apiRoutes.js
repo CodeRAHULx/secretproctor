@@ -67,6 +67,9 @@ function handleApiRoutes(req, res) {
         if (pathname === '/api/room/chat' && req.method === 'POST') {
             sessionController.sendChat(req, res); return true;
         }
+        if (pathname === '/api/room/screenshare' && req.method === 'POST') {
+            sessionController.screenShare(req, res); return true;
+        }
         if (pathname === '/api/room/leave' && req.method === 'POST') {
             sessionController.leaveRoom(req, res); return true;
         }

@@ -42,6 +42,11 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }),
+  screenShare: (body) => request('/api/room/screenshare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
   leaveRoom: (body) => request('/api/room/leave', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
