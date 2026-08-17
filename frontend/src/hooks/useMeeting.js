@@ -23,6 +23,7 @@ export function useMeeting() {
   const [media, setMedia] = useState({ mic: true, cam: true, share: false });
   const [stream, setStream] = useState(null);
   const threatKey = useRef('');
+  const initialRoomChecked = useRef(false);
 
   const addLog = (message, level = 'system') => {
     setLogs(old => [...old, { id: crypto.randomUUID(), at: now(), message, level }]);
@@ -61,6 +62,17 @@ export function useMeeting() {
       });
     return () => { active = false; };
   }, []);
+
+  // Auto-join if URL contains ?room= or ?code= parameter once user is authenticated
+  useEffect(() => {
+    if (!identity || initialRoomChecked.current || session) return;
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room') || params.get('code');
+    if (roomParam) {
+      initialRoomChecked.current = true;
+      joinByCode(roomParam);
+    }
+  }, [identity, session]);
 
   // Watchdog SSE stream during active meeting
   useEffect(() => {
@@ -155,6 +167,7 @@ export function useMeeting() {
     } catch {}
     setIdentity(null);
     setSession(null);
+    window.location.href = '/';
   };
 
   const joinSessionData = async (sessionData) => {
@@ -164,6 +177,11 @@ export function useMeeting() {
     setThreats([]);
     setChecks(initialChecks);
     addLog('Joined session. AI integrity monitoring is active.');
+
+    // Update browser URL to include meeting room ID
+    if (window.history && window.history.pushState) {
+      window.history.pushState({}, '', `/?room=${sessionData.sessionId}`);
+    }
 
     try {
       const userStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -240,6 +258,9 @@ export function useMeeting() {
       }
       setSession(null);
       setThreats([]);
+      if (window.history && window.history.pushState) {
+        window.history.pushState({}, '', '/');
+      }
     }
   };
 

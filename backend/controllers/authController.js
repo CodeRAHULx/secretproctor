@@ -36,10 +36,10 @@ class AuthController {
             const user = await googleAuthService.exchangeCode(code, req, state);
             const sessionToken = googleAuthService.createSession(user);
             res.writeHead(302, {
-                Location: '/?auth=success',
+                Location: '/',
                 'Set-Cookie': [
                     `securemeet_auth=${sessionToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`,
-                    `securemeet_oauth_state=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`
+                    `securemeet_oauth_state=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
                 ]
             });
             res.end();
@@ -55,12 +55,28 @@ class AuthController {
         res.end(JSON.stringify({ authenticated: Boolean(user), user: user || null }));
     }
 
-    logout(_req, res) {
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-            'Set-Cookie': 'securemeet_auth=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'
-        });
-        res.end(JSON.stringify({ success: true, message: 'Logged out successfully' }));
+    logout(req, res) {
+        const accept = req.headers.accept || '';
+        const isJson = accept.includes('application/json');
+
+        const expiredCookies = [
+            'securemeet_auth=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+            'securemeet_oauth_state=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+        ];
+
+        if (isJson) {
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Set-Cookie': expiredCookies
+            });
+            res.end(JSON.stringify({ success: true, message: 'Logged out successfully' }));
+        } else {
+            res.writeHead(302, {
+                Location: '/',
+                'Set-Cookie': expiredCookies
+            });
+            res.end();
+        }
     }
 
     redirect(res, location) {

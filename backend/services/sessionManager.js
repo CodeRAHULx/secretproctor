@@ -21,11 +21,23 @@ class SessionManager {
     normalizeCode(code) {
         if (!code) return '';
         let cleaned = code.trim().toLowerCase();
-        // Remove full URLs if user pasted a link
-        cleaned = cleaned.replace(/^https?:\/\/[^\/]+\//, '');
-        // Replace spaces or multiple dashes
-        cleaned = cleaned.replace(/[^a-z0-9-]/g, '');
-        return cleaned;
+        
+        // If full URL or query string passed
+        if (cleaned.includes('http://') || cleaned.includes('https://') || cleaned.includes('?') || cleaned.includes('/')) {
+            try {
+                const url = new URL(cleaned.startsWith('http') ? cleaned : `http://localhost/${cleaned.replace(/^\?/, '')}`);
+                const queryRoom = url.searchParams.get('room') || url.searchParams.get('code') || url.searchParams.get('sessionId');
+                if (queryRoom) {
+                    return queryRoom.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                }
+                const pathParts = url.pathname.split('/').filter(Boolean);
+                if (pathParts.length > 0) {
+                    cleaned = pathParts[pathParts.length - 1];
+                }
+            } catch {}
+        }
+
+        return cleaned.replace(/[^a-z0-9-]/g, '');
     }
 
     createSession({ sessionId, title, passcode, candidateName, allowedRoles, createdBy }) {
@@ -52,7 +64,7 @@ class SessionManager {
 
         let session = this.sessions.get(cleanId);
         
-        // Auto-provision meeting room if joining a valid formatted code
+        // Auto-provision meeting room if joining any valid code
         if (!session) {
             session = this.createSession({
                 sessionId: cleanId,
