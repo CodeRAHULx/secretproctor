@@ -6,16 +6,17 @@
 class ThreatModel {
     constructor(data = {}) {
         this.id = data.id || `threat_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-        this.pid = data.pid || 0;
+        this.pid = parseInt(data.pid || 0, 10);
         this.hwnd = data.hwnd || 0;
         this.title = data.title || '';
         this.path = data.path || '';
-        this.affinity = data.affinity || 0;
-        this.affinityHex = data.affinityHex || (data.affinity ? `0x${data.affinity.toString(16)}` : '0x0');
+        this.affinity = parseInt(data.affinity || 0, 10);
+        this.affinityHex = data.affinityHex || (this.affinity ? `0x${this.affinity.toString(16)}` : '0x0');
         this.type = data.type || 'DISPLAY_AFFINITY_STEALTH';
         this.severity = data.severity || 'CRITICAL'; // CRITICAL, HIGH, MEDIUM, LOW
         this.detectedAt = data.detectedAt || new Date().toISOString();
         this.status = data.status || 'ACTIVE'; // ACTIVE, TERMINATED, DISMISSED
+        this.details = data.details || '';
         this.metadata = data.metadata || {};
     }
 
@@ -28,9 +29,21 @@ class ThreatModel {
             affinity: event.affinity,
             affinityHex: event.affinityHex || (event.affinity ? `0x${event.affinity.toString(16)}` : '0x0'),
             type: event.type || 'WDA_EXCLUDEFROMCAPTURE_STEALTH',
-            severity: 'CRITICAL',
+            severity: event.severity || 'CRITICAL',
+            details: event.details || '',
             detectedAt: event.timestamp || new Date().toISOString()
         });
+    }
+
+    static parseFromJson(output) {
+        if (!output || typeof output !== 'string') return [];
+        try {
+            const parsed = JSON.parse(output.trim());
+            const list = Array.isArray(parsed.threats) ? parsed.threats : (Array.isArray(parsed) ? parsed : []);
+            return list.map(item => new ThreatModel(item));
+        } catch {
+            return [];
+        }
     }
 
     terminate() {
@@ -52,6 +65,7 @@ class ThreatModel {
             detectedAt: this.detectedAt,
             status: this.status,
             terminatedAt: this.terminatedAt,
+            details: this.details,
             metadata: this.metadata
         };
     }
