@@ -1,0 +1,21 @@
+{
+  "name": "securemeet",
+  "version": "1.0.0",
+  "description": "AI-Shielded Real-Time Video Interview & Anti-Cheat Proctoring Platform (MVC Architecture)",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "build:native": "native\\build.bat"
+  },
+  "keywords": [
+    "webrtc",
+    "proctoring",
+    "interview",
+    "anti-cheat",
+    "screen-capture",
+    "mvc"
+  ],
+  "author": "Antigravity Engineering",
+  "license": "MIT"
+}

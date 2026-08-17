@@ -1,0 +1,13 @@
+{
+  "name": "securemeet-backend",
+  "version": "1.0.0",
+  "description": "Enterprise MVC Backend for SecureMeet Anti-Cheat Proctoring Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {},
+  "author": "Antigravity Engineering",
+  "license": "MIT"
+}

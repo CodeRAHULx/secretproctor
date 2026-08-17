@@ -1,0 +1,83 @@
+{
+  "sessionTitle": "Senior Software Engineer Technical Interview",
+  "sessionId": "tech-interview-live-892",
+  "candidate": "tech-interview-live-892",
+  "role": "candidate",
+  "timestamp": "2026-08-16T11:14:12.776Z",
+  "finalTrustScore": "70%",
+  "activeThreatsDetected": [],
+  "incidentLogs": [
+    {
+      "id": "log_1786877537726_a1yj",
+      "time": "4:22:17 PM",
+      "msg": "Session started.",
+      "type": "system"
+    },
+    {
+      "id": "log_1786877537871_no64",
+      "time": "4:22:17 PM",
+      "msg": "ALERT: Hidden window \"Cluely\" (PID 4000) detected",
+      "type": "alert"
+    },
+    {
+      "id": "log_1786877540011_590k",
+      "time": "4:22:20 PM",
+      "msg": "Threat cleared. Session integrity restored.",
+      "type": "system"
+    },
+    {
+      "id": "log_1786877541671_89g7",
+      "time": "4:22:21 PM",
+      "msg": "ALERT: Hidden window \"Cluely\" (PID 4000) detected",
+      "type": "alert"
+    },
+    {
+      "id": "log_1786877552443_s3ag",
+      "time": "4:22:32 PM",
+      "msg": "Tab focus lost.",
+      "type": "warn"
+    },
+    {
+      "id": "log_1786877572242_xb6t",
+      "time": "4:22:52 PM",
+      "msg": "Threat cleared. Session integrity restored.",
+      "type": "system"
+    },
+    {
+      "id": "log_1786877575855_burv",
+      "time": "4:22:55 PM",
+      "msg": "ALERT: Hidden window \"Cluely\" (PID 4000) detected",
+      "type": "alert"
+    },
+    {
+      "id": "log_1786877585756_dupi",
+      "time": "4:23:05 PM",
+      "msg": "Threat cleared. Session integrity restored.",
+      "type": "system"
+    },
+    {
+      "id": "log_1786877588243_oihz",
+      "time": "4:23:08 PM",
+      "msg": "ALERT: Hidden window \"Cluely\" (PID 4000) detected",
+      "type": "alert"
+    },
+    {
+      "id": "log_1786877593880_q6fv",
+      "time": "4:23:13 PM",
+      "msg": "Threat cleared. Session integrity restored.",
+      "type": "system"
+    },
+    {
+      "id": "log_1786877656461_act1",
+      "time": "4:24:16 PM",
+      "msg": "Tab focus lost.",
+      "type": "warn"
+    },
+    {
+      "id": "log_1786878320870_lcza",
+      "time": "4:35:20 PM",
+      "msg": "Tab focus lost.",
+      "type": "warn"
+    }
+  ]
+}
