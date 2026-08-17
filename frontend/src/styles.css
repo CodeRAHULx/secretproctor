@@ -977,14 +977,23 @@ button, input, select {
   position: absolute;
 }
 
+.avatar-center-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 2;
+}
+
 .avatar-placeholder {
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   overflow: hidden;
   background: #1a73e8;
   display: grid;
   place-items: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .tile-avatar-img {
@@ -994,9 +1003,18 @@ button, input, select {
 }
 
 .tile-avatar-initials {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   color: white;
+}
+
+.tile-avatar-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gm-text);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 4px 14px;
+  border-radius: var(--gm-radius-full);
 }
 
 .tile-footer {

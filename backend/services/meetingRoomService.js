@@ -15,7 +15,6 @@ class MeetingRoomService {
                 participants: new Map(), // userId -> { id, name, email, picture, role, joinedAt }
                 knockQueue: new Map(),   // userId -> { id, name, email, picture, timestamp, status }
                 messages: [],            // [{ id, senderId, senderName, text, timestamp }]
-                signals: [],             // [{ id, from, to, type, data, timestamp }]
                 createdAt: Date.now()
             });
         }
@@ -24,7 +23,7 @@ class MeetingRoomService {
 
     joinRoom(roomId, user) {
         const room = this.getOrCreateRoom(roomId);
-        const userId = user?.id || user?.email || `user_${crypto.randomBytes(6).toString('hex')}`;
+        const userId = user?.id || `tab_${crypto.randomBytes(6).toString('hex')}`;
         const participantInfo = {
             id: userId,
             name: user?.name || 'Participant',
@@ -34,44 +33,64 @@ class MeetingRoomService {
             joinedAt: Date.now()
         };
 
-        // If no host exists yet, this user becomes the host
+        // If no host exists yet, this first tab becomes the host
         if (!room.hostId || room.participants.size === 0) {
             room.hostId = userId;
             participantInfo.role = 'host';
             room.participants.set(userId, participantInfo);
-            this.broadcast(room.roomId, { type: 'participant_joined', participant: participantInfo, participants: this.getParticipantList(room) });
-            return { status: 'joined', role: 'host', room: this.getRoomSummary(room), user: participantInfo };
+            this.broadcast(room.roomId, {
+                type: 'participant_joined',
+                participant: participantInfo,
+                participants: this.getParticipantList(room)
+            });
+            return {
+                status: 'joined',
+                role: 'host',
+                room: this.getRoomSummary(room),
+                user: participantInfo
+            };
         }
 
         // If already in participants
         if (room.participants.has(userId)) {
-            return { status: 'joined', role: room.participants.get(userId).role, room: this.getRoomSummary(room), user: room.participants.get(userId) };
+            return {
+                status: 'joined',
+                role: room.participants.get(userId).role,
+                room: this.getRoomSummary(room),
+                user: room.participants.get(userId)
+            };
         }
 
-        // If user is the known host returning
-        if (room.hostId === userId) {
-            room.participants.set(userId, participantInfo);
-            this.broadcast(room.roomId, { type: 'participant_joined', participant: participantInfo, participants: this.getParticipantList(room) });
-            return { status: 'joined', role: 'host', room: this.getRoomSummary(room), user: participantInfo };
-        }
-
-        // If user has already been admitted
+        // If this tab was previously admitted
         const existingKnock = room.knockQueue.get(userId);
         if (existingKnock && existingKnock.status === 'admitted') {
             room.knockQueue.delete(userId);
             room.participants.set(userId, participantInfo);
-            this.broadcast(room.roomId, { type: 'participant_joined', participant: participantInfo, participants: this.getParticipantList(room) });
-            return { status: 'joined', role: 'guest', room: this.getRoomSummary(room), user: participantInfo };
+            this.broadcast(room.roomId, {
+                type: 'participant_joined',
+                participant: participantInfo,
+                participants: this.getParticipantList(room)
+            });
+            return {
+                status: 'joined',
+                role: 'guest',
+                room: this.getRoomSummary(room),
+                user: participantInfo
+            };
         }
 
         if (existingKnock && existingKnock.status === 'denied') {
-            return { status: 'denied', message: 'The host has denied your request to join this meeting.' };
+            return { status: 'denied', message: 'The host denied your request to join this meeting.' };
         }
 
-        // Add to knock queue and notify the host
+        // Add to knock queue and notify the host immediately
         const knockEntry = { ...participantInfo, timestamp: Date.now(), status: 'pending' };
         room.knockQueue.set(userId, knockEntry);
-        this.broadcast(room.roomId, { type: 'knock_request', knock: knockEntry, knockQueue: Array.from(room.knockQueue.values()) });
+        this.broadcast(room.roomId, {
+            type: 'knock_request',
+            knock: knockEntry,
+            knockQueue: Array.from(room.knockQueue.values())
+        });
 
         return { status: 'waiting_for_host', message: 'Asking to be let in...', user: participantInfo };
     }
@@ -98,7 +117,7 @@ class MeetingRoomService {
         const room = this.rooms.get(roomId.trim().toLowerCase());
         if (!room) return { error: 'Room not found' };
 
-        // Signal target: { from, to, type, data }
+        // Relay SDP Offer / Answer / ICE Candidate directly to target peer
         this.broadcastToUser(room.roomId, signal.to, {
             type: 'webrtc_signal',
             signal: {
@@ -149,7 +168,11 @@ class MeetingRoomService {
             const nextHost = Array.from(room.participants.values())[0];
             room.hostId = nextHost.id;
             nextHost.role = 'host';
-            this.broadcast(room.roomId, { type: 'host_changed', newHostId: nextHost.id, participants: this.getParticipantList(room) });
+            this.broadcast(room.roomId, {
+                type: 'host_changed',
+                newHostId: nextHost.id,
+                participants: this.getParticipantList(room)
+            });
         }
     }
 
@@ -178,7 +201,6 @@ class MeetingRoomService {
             hostId: room.hostId
         })}\n\n`);
 
-        reqCloseHandler:
         res.on('close', () => {
             const set = this.sseListeners.get(cleanId);
             if (set) {

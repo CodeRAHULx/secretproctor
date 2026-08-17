@@ -11,26 +11,31 @@ const formatElapsed = seconds => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-function VideoTile({ name, initials, picture, stream, muted, threatened, isLocal = false }) {
+function VideoTile({ name, initials, picture, stream, muted, camOff, threatened, isLocal = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream || null;
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
     }
-  }, [stream]);
+  }, [stream, camOff]);
+
+  const showVideo = stream && !camOff;
 
   return (
-    <article className={`video-tile ${threatened ? 'threatened' : ''}`}>
-      {stream ? (
+    <article className={`video-tile ${threatened ? 'threatened' : ''} ${!showVideo ? 'cam-off' : ''}`}>
+      {showVideo ? (
         <video ref={videoRef} autoPlay playsInline muted={isLocal} />
       ) : (
-        <div className="avatar-placeholder">
-          {picture ? (
-            <img src={picture} alt={name} className="tile-avatar-img" />
-          ) : (
-            <div className="tile-avatar-initials">{initials}</div>
-          )}
+        <div className="avatar-center-wrapper">
+          <div className="avatar-placeholder">
+            {picture ? (
+              <img src={picture} alt={name} className="tile-avatar-img" />
+            ) : (
+              <div className="tile-avatar-initials">{initials}</div>
+            )}
+          </div>
+          <div className="tile-avatar-label">{name}</div>
         </div>
       )}
       <footer className="tile-footer">
@@ -101,7 +106,7 @@ function InCallChat({ messages, onSendMessage }) {
 }
 
 export function MeetingWorkspace({ meeting }) {
-  const [activeSidebar, setActiveSidebar] = useState(null); // 'guard' | 'chat' | 'people' | null
+  const [activeSidebar, setActiveSidebar] = useState(null); // 'guard' | 'chat' | null
   const [guardTab, setGuardTab] = useState('detection');
   const [linkCopied, setLinkCopied] = useState(false);
   const threat = meeting.threats[0];
@@ -161,6 +166,7 @@ export function MeetingWorkspace({ meeting }) {
               picture={meeting.identity?.picture}
               stream={meeting.stream}
               muted={!meeting.media.mic}
+              camOff={!meeting.media.cam}
               threatened={Boolean(threat)}
               isLocal={true}
             />
@@ -169,16 +175,18 @@ export function MeetingWorkspace({ meeting }) {
             {hasRemotePeers ? (
               remotePeerIds.map(peerId => {
                 const participant = meeting.participants.find(p => p.id === peerId);
-                const peerName = participant?.name || 'Remote Participant';
+                const peerName = participant?.name || 'Participant';
                 const peerInitials = peerName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                const peerStream = meeting.remoteStreams[peerId];
                 return (
                   <VideoTile
                     key={peerId}
                     name={peerName}
                     initials={peerInitials}
                     picture={participant?.picture}
-                    stream={meeting.remoteStreams[peerId]}
+                    stream={peerStream}
                     muted={false}
+                    camOff={!peerStream || peerStream.getVideoTracks().length === 0}
                     threatened={false}
                     isLocal={false}
                   />
@@ -318,7 +326,7 @@ export function MeetingWorkspace({ meeting }) {
             </svg>
           </button>
 
-          {/* Chat Drawer Toggle */}
+          {/* In-Call Chat Drawer Toggle */}
           <button
             className={`dock-btn ${activeSidebar === 'chat' ? 'active' : ''}`}
             onClick={() => setActiveSidebar(activeSidebar === 'chat' ? null : 'chat')}
@@ -329,7 +337,7 @@ export function MeetingWorkspace({ meeting }) {
             </svg>
           </button>
 
-          {/* Proctor Shield Drawer Toggle */}
+          {/* Proctor Panel Toggle */}
           <button
             className={`dock-btn ${activeSidebar === 'guard' ? 'active' : ''}`}
             onClick={() => setActiveSidebar(activeSidebar === 'guard' ? null : 'guard')}

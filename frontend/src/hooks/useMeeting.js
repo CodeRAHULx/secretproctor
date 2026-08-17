@@ -4,7 +4,8 @@ import { api } from '../services/api';
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
   ]
 };
 
@@ -39,10 +40,12 @@ export function useMeeting() {
   const [media, setMedia] = useState({ mic: true, cam: true, share: false });
   const [stream, setStream] = useState(null);
 
+  // Unique tab ID for every open tab or window
+  const tabClientId = useRef(`tab_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`).current;
   const localStreamRef = useRef(null);
   const peerConnections = useRef(new Map()); // peerId -> RTCPeerConnection
+  const candidateQueues = useRef(new Map()); // peerId -> Array of ICE candidates
   const currentRoomId = useRef('');
-  const currentUserId = useRef('');
   const roomSseRef = useRef(null);
   const threatKey = useRef('');
   const initialRoomChecked = useRef(false);
@@ -66,7 +69,6 @@ export function useMeeting() {
         if (active) {
           if (data.authenticated && data.user) {
             setIdentity(data.user);
-            currentUserId.current = data.user.id || data.user.email;
           } else {
             setIdentity(null);
           }
@@ -81,14 +83,17 @@ export function useMeeting() {
     return () => { active = false; };
   }, []);
 
-  // WebRTC Peer Connection Factory
+  // WebRTC Peer Connection Factory with ICE Candidate Buffering
   const createPeerConnection = useCallback((remotePeerId, isInitiator) => {
     if (peerConnections.current.has(remotePeerId)) {
-      peerConnections.current.get(remotePeerId).close();
+      try {
+        peerConnections.current.get(remotePeerId).close();
+      } catch {}
     }
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peerConnections.current.set(remotePeerId, pc);
+    candidateQueues.current.set(remotePeerId, []);
 
     // Add local media tracks
     if (localStreamRef.current) {
@@ -103,7 +108,7 @@ export function useMeeting() {
         api.sendSignal({
           roomId: currentRoomId.current,
           signal: {
-            from: currentUserId.current,
+            from: tabClientId,
             to: remotePeerId,
             type: 'ice-candidate',
             data: event.candidate
@@ -133,13 +138,13 @@ export function useMeeting() {
 
     // If initiator, create and send SDP Offer
     if (isInitiator) {
-      pc.createOffer()
+      pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
         .then(offer => pc.setLocalDescription(offer))
         .then(() => {
           api.sendSignal({
             roomId: currentRoomId.current,
             signal: {
-              from: currentUserId.current,
+              from: tabClientId,
               to: remotePeerId,
               type: 'offer',
               data: pc.localDescription
@@ -150,23 +155,31 @@ export function useMeeting() {
     }
 
     return pc;
-  }, []);
+  }, [tabClientId]);
 
-  // Handle incoming WebRTC signals (Offers, Answers, ICE Candidates)
+  // Handle incoming WebRTC signals
   const handleIncomingSignal = useCallback(async (signal) => {
     const { from, type, data } = signal;
-    if (!from || from === currentUserId.current) return;
+    if (!from || from === tabClientId) return;
 
     if (type === 'offer') {
       const pc = createPeerConnection(from, false);
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(data));
+        
+        // Process any buffered ICE candidates
+        const queue = candidateQueues.current.get(from) || [];
+        for (const cand of queue) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
+        }
+        candidateQueues.current.set(from, []);
+
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await api.sendSignal({
           roomId: currentRoomId.current,
           signal: {
-            from: currentUserId.current,
+            from: tabClientId,
             to: from,
             type: 'answer',
             data: answer
@@ -178,17 +191,28 @@ export function useMeeting() {
       if (pc) {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(data));
+          // Process any buffered candidates
+          const queue = candidateQueues.current.get(from) || [];
+          for (const cand of queue) {
+            try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
+          }
+          candidateQueues.current.set(from, []);
         } catch {}
       }
     } else if (type === 'ice-candidate') {
       const pc = peerConnections.current.get(from);
-      if (pc && data) {
+      if (pc && pc.remoteDescription) {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(data));
         } catch {}
+      } else {
+        // Buffer candidate until remote description is set
+        const queue = candidateQueues.current.get(from) || [];
+        queue.push(data);
+        candidateQueues.current.set(from, queue);
       }
     }
-  }, [createPeerConnection]);
+  }, [createPeerConnection, tabClientId]);
 
   // Connect to Room SSE Stream
   const connectRoomEvents = useCallback((roomId, userId) => {
@@ -207,14 +231,8 @@ export function useMeeting() {
           setParticipants(data.participants || []);
           setKnockRequests(data.knockQueue || []);
           setMessages(data.messages || []);
-
-          // Connect to existing participants in the room
-          const others = (data.participants || []).filter(p => p.id !== userId);
-          others.forEach(p => {
-            createPeerConnection(p.id, true);
-          });
         } else if (data.type === 'knock_request') {
-          setKnockRequests(data.knockQueue || (prev => [...prev.filter(k => k.id !== data.knock.id), data.knock]));
+          setKnockRequests(data.knockQueue || []);
         } else if (data.type === 'knock_response') {
           if (data.guestId === userId) {
             if (data.status === 'admitted') {
@@ -227,9 +245,9 @@ export function useMeeting() {
           }
         } else if (data.type === 'participant_joined') {
           setParticipants(data.participants || []);
+          // Existing peers initiate WebRTC offer to the newly joined peer
           if (data.participant && data.participant.id !== userId) {
-            addLog(`${data.participant.name} joined the meeting.`);
-            // Initiate WebRTC connection to the new participant
+            addLog(`${data.participant.name} joined the call.`);
             createPeerConnection(data.participant.id, true);
           }
         } else if (data.type === 'participant_left') {
@@ -243,7 +261,7 @@ export function useMeeting() {
             delete copy[data.userId];
             return copy;
           });
-          addLog('A participant left the meeting.');
+          addLog('A participant left the call.');
         } else if (data.type === 'webrtc_signal') {
           handleIncomingSignal(data.signal);
         } else if (data.type === 'chat_message') {
@@ -265,13 +283,13 @@ export function useMeeting() {
     try {
       const cleanCode = code.trim().toLowerCase().replace(/^https?:\/\/[^\/]+\//, '').replace(/[^a-z0-9-]/g, '');
       currentRoomId.current = cleanCode;
+      
       const userPayload = {
-        id: identity?.id || identity?.email || `usr_${Date.now()}`,
+        id: tabClientId,
         name: identity?.name || 'Participant',
         email: identity?.email || '',
         picture: identity?.picture || ''
       };
-      currentUserId.current = userPayload.id;
 
       // Acquire Camera & Microphone
       let userStream = null;
@@ -288,7 +306,7 @@ export function useMeeting() {
 
       if (res.status === 'waiting_for_host') {
         setWaitingForAdmission(true);
-        connectRoomEvents(cleanCode, userPayload.id);
+        connectRoomEvents(cleanCode, tabClientId);
         return;
       }
 
@@ -310,7 +328,7 @@ export function useMeeting() {
       setLogs([]);
       setThreats([]);
       setChecks(initialChecks);
-      addLog('Session started. Real-time proctor watchdog active.');
+      addLog('Meeting joined. Proctoring watchdog active.');
 
       // Update URL
       if (window.history && window.history.pushState) {
@@ -318,7 +336,7 @@ export function useMeeting() {
       }
 
       // Connect SSE signaling stream
-      connectRoomEvents(cleanCode, userPayload.id);
+      connectRoomEvents(cleanCode, tabClientId);
 
     } catch (err) {
       setError(err.message);
@@ -372,7 +390,7 @@ export function useMeeting() {
       await api.sendChat({
         roomId: session.sessionId,
         message: {
-          senderId: currentUserId.current,
+          senderId: tabClientId,
           senderName: identity?.name || session.participantName || 'Me',
           senderPicture: identity?.picture || '',
           text: text.trim()
@@ -384,16 +402,19 @@ export function useMeeting() {
   // Leave Meeting
   const leaveMeeting = async () => {
     if (window.confirm('Leave this meeting?')) {
-      if (currentRoomId.current && currentUserId.current) {
-        api.leaveRoom({ roomId: currentRoomId.current, userId: currentUserId.current }).catch(() => {});
+      if (currentRoomId.current) {
+        api.leaveRoom({ roomId: currentRoomId.current, userId: tabClientId }).catch(() => {});
       }
 
       // Close all peer connections
-      peerConnections.current.forEach(pc => pc.close());
+      peerConnections.current.forEach(pc => {
+        try { pc.close(); } catch {}
+      });
       peerConnections.current.clear();
+      candidateQueues.current.clear();
       setRemoteStreams({});
 
-      // Close streams
+      // Close local streams
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(t => t.stop());
         localStreamRef.current = null;
