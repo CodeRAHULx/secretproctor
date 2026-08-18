@@ -1,10 +1,22 @@
 const googleAuthService = require('../services/googleAuthService');
+const config = require('../config/config');
 
 const parseCookies = header => Object.fromEntries((header || '').split(';').filter(Boolean).map(part => {
     const index = part.indexOf('=');
     if (index === -1) return [part.trim(), ''];
     return [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1).trim())];
 }));
+
+function getCookieFlags(req) {
+    const isHttps = req.headers['x-forwarded-proto'] === 'https' ||
+                    req.socket?.encrypted ||
+                    config.IS_PRODUCTION ||
+                    process.env.NODE_ENV === 'production';
+    if (isHttps) {
+        return 'HttpOnly; SameSite=None; Secure; Path=/';
+    }
+    return 'HttpOnly; SameSite=Lax; Path=/';
+}
 
 class AuthController {
     status(_req, res) {
@@ -13,13 +25,14 @@ class AuthController {
     }
 
     startGoogle(req, res) {
-        if (!googleAuthService.enabled) return this.redirect(res, '/?auth=not-configured');
+        if (!googleAuthService.enabled) return this.redirect(res, `${config.FRONTEND_URL || ''}/?auth=not-configured`);
         const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-        const returnTo = url.searchParams.get('returnTo') || '/';
+        const returnTo = url.searchParams.get('returnTo') || config.FRONTEND_URL || '/';
         const { state, url: authUrl } = googleAuthService.createAuthorizationUrl(req, returnTo);
+        const cookieFlags = getCookieFlags(req);
         res.writeHead(302, {
             Location: authUrl,
-            'Set-Cookie': `securemeet_oauth_state=${state}; HttpOnly; SameSite=Lax; Path=/; Max-Age=900`
+            'Set-Cookie': `securemeet_oauth_state=${state}; ${cookieFlags}; Max-Age=900`
         });
         res.end();
     }
@@ -31,24 +44,25 @@ class AuthController {
         const cookies = parseCookies(req.headers.cookie);
 
         if (!code || !state || cookies.securemeet_oauth_state !== state || !googleAuthService.verifyState(state)) {
-            return this.redirect(res, '/?auth=failed');
+            return this.redirect(res, `${config.FRONTEND_URL || ''}/?auth=failed`);
         }
 
         try {
             const user = await googleAuthService.exchangeCode(code, req, state);
             const sessionToken = googleAuthService.createSession(user);
             const stateData = googleAuthService.verifyPayload(state);
-            const returnTo = stateData?.returnTo || '/';
+            const returnTo = stateData?.returnTo || config.FRONTEND_URL || '/';
+            const cookieFlags = getCookieFlags(req);
             res.writeHead(302, {
                 Location: returnTo,
                 'Set-Cookie': [
-                    `securemeet_auth=${sessionToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`,
-                    `securemeet_oauth_state=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
+                    `securemeet_auth=${sessionToken}; ${cookieFlags}; Max-Age=604800`,
+                    `securemeet_oauth_state=; ${cookieFlags}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
                 ]
             });
             res.end();
         } catch (_error) {
-            this.redirect(res, '/?auth=failed');
+            this.redirect(res, `${config.FRONTEND_URL || ''}/?auth=failed`);
         }
     }
 
@@ -62,10 +76,11 @@ class AuthController {
     logout(req, res) {
         const accept = req.headers.accept || '';
         const isJson = accept.includes('application/json');
+        const cookieFlags = getCookieFlags(req);
 
         const expiredCookies = [
-            'securemeet_auth=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
-            'securemeet_oauth_state=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+            `securemeet_auth=; ${cookieFlags}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+            `securemeet_oauth_state=; ${cookieFlags}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
         ];
 
         if (isJson) {
@@ -76,7 +91,7 @@ class AuthController {
             res.end(JSON.stringify({ success: true, message: 'Logged out successfully' }));
         } else {
             res.writeHead(302, {
-                Location: '/',
+                Location: config.FRONTEND_URL || '/',
                 'Set-Cookie': expiredCookies
             });
             res.end();

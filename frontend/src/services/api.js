@@ -1,5 +1,8 @@
+import { API_BASE_URL } from '../config';
+
 const request = async (url, options = {}) => {
-  const response = await fetch(url, { credentials: 'same-origin', ...options });
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  const response = await fetch(fullUrl, { credentials: 'include', ...options });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'The request could not be completed.');
   return data;

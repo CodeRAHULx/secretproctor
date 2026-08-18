@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
+import { API_BASE_URL } from '../config';
 
 export const SUPPORTED_LANGUAGES = [
   'English', 'Hindi', 'Spanish', 'French', 'German', 'Arabic',
@@ -15,7 +16,7 @@ export function useAI(sessionId) {
   const [aiConfigured, setAiConfigured] = useState(false);
 
   useEffect(() => {
-    fetch('/api/ai/status')
+    fetch(`${API_BASE_URL}/api/ai/status`, { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => setAiConfigured(Boolean(d.configured)))
       .catch(() => setAiConfigured(false));

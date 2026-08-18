@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../services/api';
+import { API_BASE_URL } from '../config';
 
 const initialChecks = [
   ['Display affinity', 'Clean', 'ok'],
@@ -20,7 +21,7 @@ export function useTelemetry(session, addLog) {
   useEffect(() => {
     if (!session) return;
     const timer = setInterval(() => setElapsed((v) => v + 1), 1000);
-    const source = new EventSource('/api/telemetry/stream');
+    const source = new EventSource(`${API_BASE_URL}/api/telemetry/stream`);
 
     source.onmessage = (event) => {
       try {

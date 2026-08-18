@@ -1,3 +1,4 @@
+const config = require('../config/config');
 const telemetryController = require('../controllers/telemetryController');
 const threatController = require('../controllers/threatController');
 const auditController = require('../controllers/auditController');
@@ -6,23 +7,38 @@ const authController = require('../controllers/authController');
 const aiController = require('../controllers/aiController');
 
 function setCorsHeaders(req, res) {
-    const allowedOrigins = [
+    const origin = req.headers.origin;
+    const defaultOrigins = [
         'https://securemeet-privatedoc.vercel.app',
         'http://localhost:5173',
-        'http://localhost:3000'
+        'http://localhost:3000',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:3000'
     ];
 
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin)) {
+    if (config.FRONTEND_URL) {
+        defaultOrigins.push(config.FRONTEND_URL);
+    }
+    if (Array.isArray(config.ALLOWED_ORIGINS)) {
+        defaultOrigins.push(...config.ALLOWED_ORIGINS);
+    }
+
+    // Check if origin is allowed or is a vercel.app deployment
+    const isVercelOrigin = origin && /^https:\/\/[a-z0-9-]+(?:\.vercel\.app)$/.test(origin);
+    const isAllowed = origin && (defaultOrigins.includes(origin) || isVercelOrigin);
+
+    if (isAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
-    } else if (process.env.NODE_ENV !== 'production') {
-        // In development, allow any origin
-        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    } else if (origin && process.env.NODE_ENV !== 'production') {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (origin) {
+        // In production fallback, allow request origin for convenience
+        res.setHeader('Access-Control-Allow-Origin', origin);
     }
 
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cache-Control, Accept');
 }
 
 function handleApiRoutes(req, res) {

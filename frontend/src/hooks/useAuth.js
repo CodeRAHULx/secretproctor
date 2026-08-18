@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { API_BASE_URL } from '../config';
 
 export function useAuth() {
   const [identity, setIdentity] = useState(null);
@@ -28,9 +29,9 @@ export function useAuth() {
   }, []);
 
   const googleSignIn = () => {
-    // Preserve current URL params (especially ?room=)
-    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.assign(`/api/auth/google?returnTo=${returnTo}`);
+    // Preserve current URL (full origin + pathname + search)
+    const returnTo = encodeURIComponent(window.location.href);
+    window.location.assign(`${API_BASE_URL}/api/auth/google?returnTo=${returnTo}`);
   };
 
   const logout = async () => {

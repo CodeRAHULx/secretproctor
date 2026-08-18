@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { api } from '../services/api';
+import { API_BASE_URL } from '../config';
 import { useAuth } from './useAuth';
 import { useMedia } from './useMedia';
 import { useWebRTC } from './useWebRTC';
@@ -358,7 +359,7 @@ export function useMeeting() {
     // SSE connection identified by connectionId (ephemeral)
     // But userId sent for host identification
     const sse = new EventSource(
-      `/api/room/events?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(userIdParam)}&connectionId=${encodeURIComponent(connectionIdParam)}`
+      `${API_BASE_URL}/api/room/events?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(userIdParam)}&connectionId=${encodeURIComponent(connectionIdParam)}`
     );
     roomSseRef.current = sse;
     sseConnected.current = true;
