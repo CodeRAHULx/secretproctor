@@ -47,6 +47,11 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }),
+  updateMediaState: (body) => request('/api/room/media', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
   leaveRoom: (body) => request('/api/room/leave', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

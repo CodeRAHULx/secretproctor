@@ -22,11 +22,14 @@ export function VideoTile({
     if (videoRef.current && stream) {
       if (videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
+        console.log('[VideoTile]', name, '- Stream assigned. Tracks:', stream.getTracks().map(t => `${t.kind} (enabled: ${t.enabled}, readyState: ${t.readyState})`).join(', '));
       }
+    } else if (videoRef.current && !stream) {
+      console.log('[VideoTile]', name, '- No stream available');
     }
-  }, [stream]);
+  }, [stream, name]);
 
-  const hasVideo = stream && !camOff && stream.getVideoTracks().length > 0;
+  const hasVideo = stream && !camOff && stream.getVideoTracks().length > 0 && stream.getVideoTracks().some(t => t.readyState === 'live');
 
   return (
     <article

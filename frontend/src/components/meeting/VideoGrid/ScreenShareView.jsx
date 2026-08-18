@@ -8,8 +8,13 @@ export function ScreenShareView({ screenStream, presenterName = 'Presenter', isL
   useEffect(() => {
     if (videoRef.current && screenStream) {
       videoRef.current.srcObject = screenStream;
+      const tracks = screenStream.getTracks();
+      console.log('[ScreenShareView]', presenterName, '- Screen stream assigned. Tracks:', tracks.map(t => `${t.kind} (enabled: ${t.enabled}, readyState: ${t.readyState}, label: ${t.label})`).join(', '));
+    } else if (videoRef.current && !screenStream) {
+      console.warn('[ScreenShareView]', presenterName, '- No screen stream available!');
+      videoRef.current.srcObject = null;
     }
-  }, [screenStream]);
+  }, [screenStream, presenterName]);
 
   const { participants, threats } = meeting;
   const threat = threats?.[0];

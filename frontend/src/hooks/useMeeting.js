@@ -27,19 +27,17 @@ export function useMeeting() {
 
   const auth = useAuth();
 
-  // Stable user identity: use Google ID or generate persistent session ID
+  // Stable CONNECTION identity: unique per browser tab/session
+  // Separate from user account ID to support multiple tabs from same account
   const clientId = useMemo(() => {
-    if (auth.identity?.id) {
-      return auth.identity.id;
+    let tabId = sessionStorage.getItem('securemeet_tab_id');
+    if (!tabId) {
+      // Use crypto.randomUUID() for collision-resistant unique ID
+      tabId = `tab_${crypto.randomUUID()}`;
+      sessionStorage.setItem('securemeet_tab_id', tabId);
     }
-
-    let sessionId = sessionStorage.getItem('securemeet_client_id');
-    if (!sessionId) {
-      sessionId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      sessionStorage.setItem('securemeet_client_id', sessionId);
-    }
-    return sessionId;
-  }, [auth.identity?.id]);
+    return tabId;
+  }, []);
 
   const currentRoomId = useRef('');
   const roomSseRef = useRef(null);
@@ -452,40 +450,61 @@ export function useMeeting() {
     if (!roomId) return;
 
     if (!wasSharing && isNowSharing) {
+      console.log('[ScreenShare] Starting screen share');
+
       // Notify server of screen share
       try {
         await api.screenShare({ roomId, userId: clientId, isSharing: true });
-      } catch {}
+        console.log('[ScreenShare] Server notified of screen share start');
+      } catch (err) {
+        console.error('[ScreenShare] Failed to notify server:', err);
+      }
 
       // Replace video track across all WebRTC connections
       const screenTrack = mediaHook.screenStreamRef?.current?.getVideoTracks()[0];
       if (screenTrack) {
-        rtcHook.replaceVideoTrack(screenTrack);
+        console.log('[ScreenShare] Replacing video track with screen track across all peers');
+        await rtcHook.replaceVideoTrack(screenTrack);
+        addLog('Screen sharing started.', 'info');
 
         // When user stops via browser floating bar
         screenTrack.onended = async () => {
+          console.log('[ScreenShare] Browser stopped screen share');
           if (mediaHook.screenStreamRef.current) {
             mediaHook.screenStreamRef.current.getTracks().forEach((t) => t.stop());
             mediaHook.screenStreamRef.current = null;
           }
-          mediaHook.toggleMedia('share'); // resets share state
+
+          // Update media state properly
+          mediaHook.media.share = false;
+
           try {
             await api.screenShare({ roomId, userId: clientId, isSharing: false });
+            console.log('[ScreenShare] Server notified of screen share stop');
           } catch {}
+
           const camTrack = mediaHook.localStreamRef.current?.getVideoTracks()[0] || null;
-          rtcHook.replaceVideoTrack(camTrack);
+          console.log('[ScreenShare] Restoring camera track');
+          await rtcHook.replaceVideoTrack(camTrack);
+          addLog('Screen sharing ended.', 'info');
         };
+      } else {
+        console.error('[ScreenShare] No screen track found!');
       }
     } else {
       // Stopped sharing
+      console.log('[ScreenShare] Stopping screen share');
       try {
         await api.screenShare({ roomId, userId: clientId, isSharing: false });
+        console.log('[ScreenShare] Server notified of screen share stop');
       } catch {}
 
       const camTrack = mediaHook.localStreamRef.current?.getVideoTracks()[0] || null;
-      rtcHook.replaceVideoTrack(camTrack);
+      console.log('[ScreenShare] Restoring camera track');
+      await rtcHook.replaceVideoTrack(camTrack);
+      addLog('Screen sharing stopped.', 'info');
     }
-  }, [mediaHook, rtcHook, clientId]);
+  }, [mediaHook, rtcHook, clientId, addLog]);
 
   // ─── Leave Meeting ───────────────────────────────────────────────────────
   const leaveMeeting = useCallback(async () => {
@@ -559,7 +578,22 @@ export function useMeeting() {
     stream: mediaHook.stream,
     screenStream: mediaHook.screenStream,
     screenStreamRef: mediaHook.screenStreamRef,
-    toggleMedia: mediaHook.toggleMedia,
+    toggleMedia: useCallback((kind) => {
+      mediaHook.toggleMedia(kind);
+
+      // Broadcast media state to server so remote participants see mute icons
+      if (currentRoomId.current && (kind === 'mic' || kind === 'cam')) {
+        const updates = kind === 'mic'
+          ? { audioEnabled: !mediaHook.media.mic }
+          : { videoEnabled: !mediaHook.media.cam };
+
+        api.updateMediaState({
+          roomId: currentRoomId.current,
+          userId: clientId,
+          ...updates
+        }).catch(() => {});
+      }
+    }, [mediaHook, clientId]),
     toggleShare,
 
     // Screen Share State
