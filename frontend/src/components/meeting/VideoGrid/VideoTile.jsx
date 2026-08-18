@@ -19,40 +19,51 @@ export function VideoTile({
   const videoRef = useRef(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      if (videoRef.current.srcObject !== stream) {
-        videoRef.current.srcObject = stream;
-        console.log('[VideoTile]', name, '- Stream assigned. Tracks:', stream.getTracks().map(t => `${t.kind} (enabled: ${t.enabled}, readyState: ${t.readyState})`).join(', '));
-      }
-    } else if (videoRef.current && !stream) {
-      console.log('[VideoTile]', name, '- No stream available');
+    if (!videoRef.current) return;
+    if (stream && videoRef.current.srcObject !== stream) {
+      videoRef.current.srcObject = stream;
+    } else if (!stream) {
+      videoRef.current.srcObject = null;
     }
-  }, [stream, name]);
+  }, [stream]);
 
-  const hasVideo = stream && !camOff && stream.getVideoTracks().length > 0 && stream.getVideoTracks().some(t => t.readyState === 'live');
+  // Show video only if: stream exists AND camera is not toggled off AND has a live video track
+  const hasLiveVideoTrack = stream &&
+    stream.getVideoTracks().length > 0 &&
+    stream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled);
+
+  // For remote participants camOff comes from server-broadcast state.
+  // We also check actual track state as a fallback for when server update is missed.
+  const showVideo = !camOff && hasLiveVideoTrack;
 
   return (
     <article
       className={[
         'video-tile',
         threatened ? 'threatened' : '',
-        !hasVideo ? 'cam-off' : '',
+        !showVideo ? 'cam-off' : '',
         `size-${size}`,
         isLocal ? 'is-local' : '',
         isScreenShare ? 'is-screenshare' : ''
       ].filter(Boolean).join(' ')}
     >
-      {/* Active Video Stream */}
+      {/* Active Video Stream — always mounted so srcObject assignment works */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={isLocal}
-        className={`tile-video ${hasVideo ? 'visible' : 'hidden'}`}
+        style={{
+          display: showVideo ? 'block' : 'none',
+          width: '100%',
+          height: '100%',
+          objectFit: isScreenShare ? 'contain' : 'cover',
+          borderRadius: 'inherit'
+        }}
       />
 
-      {/* Avatar Display when Camera is Inactive */}
-      {!hasVideo && (
+      {/* Avatar shown when camera is off or stream not available */}
+      {!showVideo && (
         <div className="avatar-center-wrapper">
           <Avatar
             src={picture}
@@ -66,7 +77,7 @@ export function VideoTile({
         </div>
       )}
 
-      {/* Status Connecting Banner */}
+      {/* Connecting overlay */}
       {status === 'CONNECTING' && (
         <div className="connecting-overlay">
           <span className="connecting-spinner" />
@@ -74,7 +85,7 @@ export function VideoTile({
         </div>
       )}
 
-      {/* Footer Info Overlay */}
+      {/* Footer name + mic badge */}
       <footer className="tile-footer">
         <span className="tile-name">
           {name}{isLocal && ' (You)'}
@@ -89,7 +100,7 @@ export function VideoTile({
         </span>
       </footer>
 
-      {/* Threat Alert Ribbon */}
+      {/* Threat ribbon */}
       {threatened && (
         <div className="threat-banner">
           <AlertTriangle size={16} />

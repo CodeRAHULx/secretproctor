@@ -2784,43 +2784,97 @@ button, input, select {
   display: grid;
   gap: 12px;
   padding: 12px;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-items: stretch;
   min-height: 0;
 }
 
-/* 1 Participant (Solo) */
+/* 1 Participant (Solo) — fills stage */
 .video-grid.layout-solo {
-  grid-template-columns: min(880px, 95%);
-  grid-template-rows: min(520px, 85vh);
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
   justify-content: center;
   align-content: center;
 }
 
-/* 2 Participants (Duo) */
+.video-grid.layout-solo .video-tile {
+  max-width: 960px;
+  max-height: 80vh;
+  margin: auto;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+/* 2 Participants (Duo) — side by side on desktop, stacked on mobile */
 .video-grid.layout-duo {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  grid-template-rows: min(480px, 80vh);
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
   align-content: center;
+}
+
+.video-grid.layout-duo .video-tile {
+  aspect-ratio: 16 / 9;
+  width: 100%;
 }
 
 /* 3+ Participants (Multi-Peer Adaptive Grid) */
 .video-grid.layout-multi {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  grid-auto-rows: minmax(180px, 1fr);
-  align-content: center;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-auto-rows: 1fr;
+  align-content: start;
+}
+
+.video-grid.layout-multi .video-tile {
+  aspect-ratio: 16 / 9;
+  width: 100%;
 }
 
 .video-grid.layout-multi.count-3,
 .video-grid.layout-multi.count-4 {
-  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
 }
 
+/* Mobile — everything stacks vertically */
 @media (max-width: 768px) {
+  .stage-area {
+    padding: 8px;
+  }
+
+  .video-grid {
+    gap: 8px;
+    padding: 8px;
+  }
+
   .video-grid.layout-duo,
   .video-grid.layout-multi.count-3,
   .video-grid.layout-multi.count-4 {
     grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+  }
+
+  .video-grid.layout-solo .video-tile,
+  .video-grid.layout-duo .video-tile,
+  .video-grid.layout-multi .video-tile {
+    aspect-ratio: 4 / 3;
+    max-height: 50vh;
+  }
+
+  .meet-dock {
+    padding: 8px 12px;
+  }
+
+  .dock-center {
+    gap: 8px;
+  }
+
+  .dock-btn {
+    width: 42px;
+    height: 42px;
+  }
+
+  .dock-left,
+  .dock-right {
+    display: none;
   }
 }
 

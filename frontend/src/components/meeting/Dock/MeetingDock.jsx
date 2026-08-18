@@ -17,6 +17,8 @@ export function MeetingDock({
   activeSidebar,
   onToggleSidebar
 }) {
+  // getDisplayMedia is not supported on iOS Safari or Android Chrome
+  const canScreenShare = Boolean(navigator.mediaDevices?.getDisplayMedia);
   return (
     <footer className="meet-dock">
       <div className="dock-left">
@@ -54,15 +56,17 @@ export function MeetingDock({
           )}
         </button>
 
-        {/* Present Screen Share */}
-        <button
-          className={`dock-btn ${meeting.amSharing ? 'active' : ''}`}
-          onClick={meeting.toggleShare}
-          title={meeting.amSharing ? 'Stop presenting' : 'Present now'}
-          aria-label="Present screen"
-        >
-          <MonitorUp size={20} strokeWidth={2} />
-        </button>
+        {/* Present Screen Share — hidden on mobile where it's unsupported */}
+        {canScreenShare && (
+          <button
+            className={`dock-btn ${meeting.amSharing ? 'active' : ''}`}
+            onClick={meeting.toggleShare}
+            title={meeting.amSharing ? 'Stop presenting' : 'Present now'}
+            aria-label="Present screen"
+          >
+            <MonitorUp size={20} strokeWidth={2} />
+          </button>
+        )}
 
         {/* Live Chat */}
         <button

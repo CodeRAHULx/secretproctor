@@ -43,7 +43,6 @@ export function useMedia(onLog = () => {}) {
     ).forEach((t) => { t.enabled = active; });
   }, [media]);
 
-  // Returns whether screen share started (true) or was already running (false = stopped)
   const toggleShare = useCallback(async () => {
     if (media.share) {
       // Stop sharing
@@ -57,19 +56,19 @@ export function useMedia(onLog = () => {}) {
       return false; // was sharing → now stopped
     }
 
+    // Mobile browsers don't support getDisplayMedia
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      onLog('Screen sharing is not supported on this device or browser.', 'warn');
+      return false;
+    }
+
     try {
       const share = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       screenStreamRef.current = share;
       setScreenStream(share);
-
-      // Auto-stop when user clicks browser's "Stop sharing" button
-      share.getVideoTracks()[0].onended = () => {
-        screenStreamRef.current = null;
-        setScreenStream(null);
-        setMedia((old) => ({ ...old, share: false }));
-        onLog('Screen sharing ended.', 'info');
-      };
-
+      // NOTE: onended is intentionally NOT set here.
+      // useMeeting.js sets its own onended handler that does full cleanup:
+      // server notify + WebRTC track replacement. Adding one here causes a double-fire race.
       setMedia((old) => ({ ...old, share: true }));
       onLog('Screen sharing started.', 'info');
       return true; // started sharing

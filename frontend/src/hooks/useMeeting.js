@@ -697,16 +697,18 @@ export function useMeeting() {
     }
   }, [isHost, userId, leaveMeeting]);
 
-  // Auto-join from URL parameter ?room=xxx
+  // Auto-join from URL parameter ?room=xxx (works for both Google auth and guest users)
   useEffect(() => {
-    if (!auth.identity || initialRoomChecked.current || session || waitingForAdmission) return;
+    if (initialRoomChecked.current || session || waitingForAdmission) return;
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room') || params.get('code');
-    if (roomParam) {
-      initialRoomChecked.current = true;
-      joinByCode(roomParam);
-    }
-  }, [auth.identity, session, waitingForAdmission, joinByCode]);
+    if (!roomParam) return;
+    // For Google users: wait until auth resolves (avoids joining as wrong identity)
+    // For guest users: auth.authLoading will be false quickly since there's no OAuth
+    if (auth.authLoading) return;
+    initialRoomChecked.current = true;
+    joinByCode(roomParam);
+  }, [auth.authLoading, session, waitingForAdmission, joinByCode]);
 
   return {
     // Auth & Identity
