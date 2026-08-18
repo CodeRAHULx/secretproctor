@@ -1,0 +1,19 @@
+{
+  "name": "securemeet-cross-platform-detector",
+  "version": "1.0.0",
+  "description": "Cross-platform process and window detection for SecureMeet proctoring",
+  "main": "detector.js",
+  "scripts": {
+    "test": "node detector.js --json"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "keywords": [
+    "proctoring",
+    "process-detection",
+    "window-detection",
+    "cross-platform"
+  ],
+  "author": "SecureMeet",
+  "license": "MIT"
+}
