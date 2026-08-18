@@ -6,8 +6,6 @@ class MeetingRoomService {
         this.sseListeners = new Map(); // roomId -> Set of { userId, res }
     }
 
-    // ─── Internal helpers ──────────────────────────────────────────────────────
-
     _cleanId(roomId) {
         return (roomId || '').trim().toLowerCase();
     }
@@ -16,122 +14,207 @@ class MeetingRoomService {
         return this.rooms.get(this._cleanId(roomId));
     }
 
-    _getOrCreate(roomId) {
+    _getOrCreate(roomId, creatorId = null, hostToken = null) {
         const id = this._cleanId(roomId);
         if (!this.rooms.has(id)) {
             this.rooms.set(id, {
                 roomId: id,
-                hostId: null,          // Set when creator explicitly claims host
-                creatorId: null,       // The user who created the room via /api/session/create
-                participants: new Map(), // userId -> participantRecord
-                knockQueue: new Map(),   // userId -> knockRecord
+                hostId: creatorId || null,
+                creatorId: creatorId || null,
+                hostToken: hostToken || null,
+                participants: new Map(), // userId -> ParticipantModel
+                knockQueue: new Map(),   // userId -> KnockModel
                 messages: [],
-                screenShareOwner: null, // userId currently sharing screen
+                screenShareOwner: null,
                 createdAt: Date.now()
             });
         }
-        return this.rooms.get(id);
-    }
-
-    // ─── Host assignment (called by session/create endpoint) ───────────────────
-
-    /**
-     * Called when the meeting is CREATED (before anyone joins).
-     * Persists the creator's userId so they always become the host.
-     */
-    reserveHost(roomId, creatorId) {
-        const room = this._getOrCreate(roomId);
-        if (!room.creatorId) {
+        const room = this.rooms.get(id);
+        if (creatorId && !room.creatorId) {
             room.creatorId = creatorId;
+            room.hostId = creatorId;
+        }
+        if (hostToken && !room.hostToken) {
+            room.hostToken = hostToken;
         }
         return room;
     }
 
-    // ─── Join ──────────────────────────────────────────────────────────────────
+    /**
+     * Reserve host identity when meeting is created
+     */
+    reserveHost(roomId, creatorId, hostToken) {
+        return this._getOrCreate(roomId, creatorId, hostToken);
+    }
 
-    joinRoom(roomId, user) {
+    /**
+     * Join Room Flow
+     */
+    joinRoom(roomId, user, hostToken) {
         const room = this._getOrCreate(roomId);
         const userId = user?.id;
         if (!userId) return { error: 'User ID required' };
 
-        // Already a full participant — return current state
-        if (room.participants.has(userId)) {
+        // Check if this participant is the Authoritative Host:
+        // 1. Matches room.hostId
+        // 2. Matches room.creatorId
+        // 3. Provided matching hostToken
+        // 4. Room has no host assigned yet and this user created it
+        const isHost = Boolean(
+            (room.hostId && room.hostId === userId) ||
+            (room.creatorId && room.creatorId === userId) ||
+            (room.hostToken && hostToken && room.hostToken === hostToken) ||
+            (!room.hostId && room.participants.size === 0 && room.creatorId === userId)
+        );
+
+        // If Host joins
+        if (isHost) {
+            room.hostId = userId;
+            room.creatorId = userId;
+
+            const participantRecord = {
+                id: userId,
+                name: user.name || 'Host',
+                email: user.email || '',
+                picture: user.picture || '',
+                role: 'host',
+                status: 'CONNECTED',
+                audioEnabled: user.audioEnabled !== false,
+                videoEnabled: user.videoEnabled !== false,
+                screenSharing: false,
+                joinedAt: Date.now()
+            };
+
+            room.participants.set(userId, participantRecord);
+            room.knockQueue.delete(userId);
+
+            this._broadcast(room.roomId, {
+                type: 'participant_joined',
+                participant: participantRecord,
+                hostId: room.hostId,
+                participants: this._participantList(room)
+            });
+
             return {
                 status: 'joined',
-                role: room.participants.get(userId).role,
+                role: 'host',
+                hostId: room.hostId,
                 room: this._roomSummary(room),
-                user: room.participants.get(userId)
+                user: participantRecord
             };
         }
 
-        // Determine role: creator or first-ever joiner to an unclaimed room
-        const isCreator = room.creatorId === userId;
-        const isFirstJoiner = !room.hostId && room.participants.size === 0;
-        const isHost = isCreator || (!room.creatorId && isFirstJoiner);
+        // ── Participant / Guest Flow ─────────────────────────────────────────
 
-        if (isHost) {
-            room.hostId = userId;
-            const record = this._makeParticipant(user, 'host');
-            room.participants.set(userId, record);
+        // If already an active participant in room (RECONNECTION)
+        if (room.participants.has(userId)) {
+            const existing = room.participants.get(userId);
+
+            // Update their reconnection details
+            existing.name = user.name || existing.name;
+            existing.email = user.email || existing.email;
+            existing.picture = user.picture || existing.picture;
+            existing.audioEnabled = user.audioEnabled !== false;
+            existing.videoEnabled = user.videoEnabled !== false;
+            existing.status = 'CONNECTED';
+
+            // Broadcast reconnection to all participants
             this._broadcast(room.roomId, {
-                type: 'participant_joined',
-                participant: record,
+                type: 'participant_reconnected',
+                participant: existing,
+                hostId: room.hostId,
                 participants: this._participantList(room)
             });
-            return { status: 'joined', role: 'host', room: this._roomSummary(room), user: record };
+
+            return {
+                status: 'joined',
+                role: existing.role,
+                hostId: room.hostId,
+                room: this._roomSummary(room),
+                user: existing
+            };
         }
 
-        // Guest: check knock queue
-        const existing = room.knockQueue.get(userId);
+        // Check knock queue
+        const existingKnock = room.knockQueue.get(userId);
 
-        if (existing?.status === 'admitted') {
-            // Move from knock queue → participants
+        if (existingKnock?.status === 'admitted' || existingKnock?.status === 'ADMITTED') {
+            // Move from Knock Queue -> Active Participants
             room.knockQueue.delete(userId);
-            const record = this._makeParticipant(user, 'participant');
-            room.participants.set(userId, record);
 
-            // Broadcast to EVERYONE (including new joiner via SSE) so they all
-            // know who is in the room and can set up WebRTC
+            const participantRecord = {
+                id: userId,
+                name: user.name || existingKnock.name || 'Participant',
+                email: user.email || existingKnock.email || '',
+                picture: user.picture || existingKnock.picture || '',
+                role: 'participant', // STRICTLY PARTICIPANT
+                status: 'CONNECTED',
+                audioEnabled: user.audioEnabled !== false,
+                videoEnabled: user.videoEnabled !== false,
+                screenSharing: false,
+                joinedAt: Date.now()
+            };
+
+            room.participants.set(userId, participantRecord);
+
+            // Broadcast to ALL connected clients so existing peers initiate WebRTC offers
             this._broadcast(room.roomId, {
                 type: 'participant_joined',
-                participant: record,
+                participant: participantRecord,
+                hostId: room.hostId,
                 participants: this._participantList(room)
             });
 
-            return { status: 'joined', role: 'participant', room: this._roomSummary(room), user: record };
+            return {
+                status: 'joined',
+                role: 'participant',
+                hostId: room.hostId,
+                room: this._roomSummary(room),
+                user: participantRecord
+            };
         }
 
-        if (existing?.status === 'denied') {
-            return { status: 'denied', message: 'The host denied your request to join.' };
+        if (existingKnock?.status === 'denied' || existingKnock?.status === 'DENIED') {
+            return {
+                status: 'denied',
+                message: 'The host has denied your request to join this meeting.'
+            };
         }
 
-        if (existing?.status === 'pending') {
-            // Re-knock is a no-op — still waiting
-            return { status: 'waiting_for_host', message: 'Asking to be let in…', user: existing };
-        }
-
-        // Fresh knock
+        // If not admitted yet -> Add to Knock Queue in WAITING status
         const knockRecord = {
             id: userId,
             name: user.name || 'Participant',
             email: user.email || '',
             picture: user.picture || '',
-            timestamp: Date.now(),
-            status: 'pending'
+            role: 'participant',
+            status: 'WAITING',
+            audioEnabled: user.audioEnabled !== false,
+            videoEnabled: user.videoEnabled !== false,
+            timestamp: Date.now()
         };
+
         room.knockQueue.set(userId, knockRecord);
 
+        // Notify Host of pending knock
         this._broadcast(room.roomId, {
             type: 'knock_request',
             knock: knockRecord,
             knockQueue: this._knockList(room)
         });
 
-        return { status: 'waiting_for_host', message: 'Asking to be let in…', user: knockRecord };
+        return {
+            status: 'waiting_for_host',
+            role: 'participant',
+            hostId: room.hostId,
+            message: 'Asking to be let in...',
+            user: knockRecord
+        };
     }
 
-    // ─── Admit / Deny ──────────────────────────────────────────────────────────
-
+    /**
+     * Host Admits / Denies Guest
+     */
     admitGuest(roomId, guestId, action = 'admit') {
         const room = this._getRoom(roomId);
         if (!room) return { error: 'Room not found' };
@@ -141,47 +224,82 @@ class MeetingRoomService {
 
         if (action === 'admit') {
             knock.status = 'admitted';
-            // Tell the waiting guest they may now call joinRoom again
+
+            // Send notification directly to the waiting guest
             this._broadcastToUser(room.roomId, guestId, {
                 type: 'knock_response',
                 guestId,
                 status: 'admitted'
             });
-            // Also refresh the host's knock queue display
-            this._broadcastToUser(room.roomId, room.hostId, {
+
+            // Update host's knock queue UI
+            this._broadcast(room.roomId, {
                 type: 'knock_queue_update',
                 knockQueue: this._knockList(room)
             });
+
             return { success: true, status: 'admitted' };
         } else {
             knock.status = 'denied';
+
             this._broadcastToUser(room.roomId, guestId, {
                 type: 'knock_response',
                 guestId,
                 status: 'denied'
             });
-            this._broadcastToUser(room.roomId, room.hostId, {
+
+            this._broadcast(room.roomId, {
                 type: 'knock_queue_update',
                 knockQueue: this._knockList(room)
             });
+
             return { success: true, status: 'denied' };
         }
     }
 
-    // ─── WebRTC Signaling ──────────────────────────────────────────────────────
+    /**
+     * Update participant media state (mic/cam/screen)
+     */
+    updateMediaState(roomId, userId, updates = {}) {
+        const room = this._getRoom(roomId);
+        if (!room) return;
 
+        const p = room.participants.get(userId);
+        if (p) {
+            if (typeof updates.audioEnabled === 'boolean') p.audioEnabled = updates.audioEnabled;
+            if (typeof updates.videoEnabled === 'boolean') p.videoEnabled = updates.videoEnabled;
+            if (typeof updates.screenSharing === 'boolean') p.screenSharing = updates.screenSharing;
+
+            this._broadcast(room.roomId, {
+                type: 'participant_updated',
+                participant: p,
+                participants: this._participantList(room)
+            });
+        }
+    }
+
+    /**
+     * WebRTC Signaling Relay
+     */
     sendSignal(roomId, signal) {
         const room = this._getRoom(roomId);
         if (!room) return { error: 'Room not found' };
+
         this._broadcastToUser(room.roomId, signal.to, {
             type: 'webrtc_signal',
-            signal: { from: signal.from, to: signal.to, type: signal.type, data: signal.data }
+            signal: {
+                from: signal.from,
+                to: signal.to,
+                type: signal.type,
+                data: signal.data
+            }
         });
         return { success: true };
     }
 
-    // ─── Chat ──────────────────────────────────────────────────────────────────
-
+    /**
+     * Live Chat Messaging
+     */
     addMessage(roomId, message) {
         const room = this._getRoom(roomId);
         if (!room) return { error: 'Room not found' };
@@ -194,37 +312,49 @@ class MeetingRoomService {
             text: message.text,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
+
         room.messages.push(msg);
         if (room.messages.length > 200) room.messages.shift();
+
         this._broadcast(room.roomId, { type: 'chat_message', message: msg });
         return { success: true, message: msg };
     }
 
-    // ─── Screen Share ──────────────────────────────────────────────────────────
-
+    /**
+     * Screen Sharing State
+     */
     setScreenShare(roomId, userId, isSharing) {
         const room = this._getRoom(roomId);
         if (!room) return { error: 'Room not found' };
 
         if (isSharing) {
             room.screenShareOwner = userId;
+            const p = room.participants.get(userId);
+            if (p) p.screenSharing = true;
+
             this._broadcast(room.roomId, {
                 type: 'screen_share_started',
                 ownerId: userId,
-                ownerName: room.participants.get(userId)?.name || 'Participant'
+                ownerName: p?.name || 'Participant',
+                participants: this._participantList(room)
             });
         } else {
             if (room.screenShareOwner === userId) room.screenShareOwner = null;
+            const p = room.participants.get(userId);
+            if (p) p.screenSharing = false;
+
             this._broadcast(room.roomId, {
                 type: 'screen_share_stopped',
-                ownerId: userId
+                ownerId: userId,
+                participants: this._participantList(room)
             });
         }
         return { success: true };
     }
 
-    // ─── Leave ─────────────────────────────────────────────────────────────────
-
+    /**
+     * Leave Meeting
+     */
     leaveRoom(roomId, userId) {
         const room = this._getRoom(roomId);
         if (!room) return;
@@ -236,32 +366,23 @@ class MeetingRoomService {
         this._broadcast(room.roomId, {
             type: 'participant_left',
             userId,
+            hostId: room.hostId,
             participants: this._participantList(room)
         });
 
-        // If the host left, assign the next participant as host
-        if (room.hostId === userId && room.participants.size > 0) {
-            const next = Array.from(room.participants.values())[0];
-            room.hostId = next.id;
-            room.creatorId = next.id;
-            next.role = 'host';
-            this._broadcast(room.roomId, {
-                type: 'host_changed',
-                newHostId: next.id,
-                participants: this._participantList(room)
-            });
-        }
-
-        // Clean up empty rooms
+        // Clean up empty rooms after 30 seconds
         if (room.participants.size === 0) {
             setTimeout(() => {
-                if (room.participants.size === 0) this.rooms.delete(room.roomId);
+                if (room.participants.size === 0) {
+                    this.rooms.delete(room.roomId);
+                }
             }, 30000);
         }
     }
 
-    // ─── SSE Registration ──────────────────────────────────────────────────────
-
+    /**
+     * SSE Event Stream Registration
+     */
     registerSSE(roomId, userId, res) {
         const id = this._cleanId(roomId);
         if (!this.sseListeners.has(id)) {
@@ -278,7 +399,7 @@ class MeetingRoomService {
         });
         res.write('\n');
 
-        // Send full room snapshot immediately
+        // Immediately send room state snapshot
         const room = this._getOrCreate(id);
         res.write(`data: ${JSON.stringify({
             type: 'room_snapshot',
@@ -289,13 +410,17 @@ class MeetingRoomService {
             screenShareOwner: room.screenShareOwner
         })}\n\n`);
 
-        // Heartbeat every 25s to keep connection alive
-        const hb = setInterval(() => {
-            try { res.write(': ping\n\n'); } catch { clearInterval(hb); }
-        }, 25000);
+        // Keep-alive heartbeat every 20s
+        const heartbeat = setInterval(() => {
+            try {
+                res.write(': ping\n\n');
+            } catch {
+                clearInterval(heartbeat);
+            }
+        }, 20000);
 
         res.on('close', () => {
-            clearInterval(hb);
+            clearInterval(heartbeat);
             const set = this.sseListeners.get(id);
             if (set) {
                 set.delete(listener);
@@ -304,15 +429,15 @@ class MeetingRoomService {
         });
     }
 
-    // ─── Broadcast helpers ─────────────────────────────────────────────────────
-
     _broadcast(roomId, data) {
         const id = this._cleanId(roomId);
         const set = this.sseListeners.get(id);
         if (!set) return;
         const payload = `data: ${JSON.stringify(data)}\n\n`;
         for (const listener of set) {
-            try { listener.res.write(payload); } catch {}
+            try {
+                listener.res.write(payload);
+            } catch {}
         }
     }
 
@@ -323,22 +448,11 @@ class MeetingRoomService {
         const payload = `data: ${JSON.stringify(data)}\n\n`;
         for (const listener of set) {
             if (listener.userId === targetUserId) {
-                try { listener.res.write(payload); } catch {}
+                try {
+                    listener.res.write(payload);
+                } catch {}
             }
         }
-    }
-
-    // ─── Data helpers ──────────────────────────────────────────────────────────
-
-    _makeParticipant(user, role) {
-        return {
-            id: user.id,
-            name: user.name || 'Participant',
-            email: user.email || '',
-            picture: user.picture || '',
-            role,
-            joinedAt: Date.now()
-        };
     }
 
     _participantList(room) {
@@ -346,7 +460,7 @@ class MeetingRoomService {
     }
 
     _knockList(room) {
-        return Array.from(room.knockQueue.values());
+        return Array.from(room.knockQueue.values()).filter(k => k.status === 'WAITING' || k.status === 'pending');
     }
 
     _roomSummary(room) {

@@ -1,5 +1,13 @@
 import React from 'react';
 import { Button } from '../../common/Button';
+import {
+  Copy,
+  Check,
+  Sparkles,
+  LayoutDashboard,
+  Shield,
+  ShieldAlert
+} from 'lucide-react';
 
 const formatElapsed = (seconds) => {
   const h = Math.floor(seconds / 3600);
@@ -25,8 +33,18 @@ export function MeetingTopbar({
       <div className="topbar-left">
         <div className="workspace-meeting-info">
           <span className="workspace-code">{sessionId}</span>
-          <Button variant="ghost" size="sm" onClick={onCopyLink} className="btn-copy-topbar">
-            {linkCopied ? '✓ Copied' : 'Copy link'}
+          <Button variant="ghost" size="sm" onClick={onCopyLink} className="btn-copy-topbar" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            {linkCopied ? (
+              <>
+                <Check size={14} strokeWidth={2.5} color="var(--gm-green)" />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy size={14} strokeWidth={2} />
+                <span>Copy link</span>
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -37,8 +55,9 @@ export function MeetingTopbar({
 
       <div className="topbar-right">
         {aiConfigured && (
-          <span className="ai-badge" title="Gemini AI & Real-time translation active">
-            ✨ AI Active
+          <span className="ai-badge" title="Gemini AI & Real-time translation active" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Sparkles size={14} strokeWidth={2} />
+            <span>AI Active</span>
           </span>
         )}
 
@@ -46,8 +65,10 @@ export function MeetingTopbar({
           className="btn-host-dashboard-top"
           onClick={onToggleHostDashboard}
           title="Open Host Proctor Dashboard"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          📊 Dashboard
+          <LayoutDashboard size={16} strokeWidth={2} />
+          <span>Dashboard</span>
         </button>
 
         <button

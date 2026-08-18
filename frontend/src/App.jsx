@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { useMeeting } from './hooks/useMeeting';
+import { LandingPage } from './components/home/LandingPage';
 import { SignInScreen } from './components/auth/SignInScreen';
 import { HomeScreen } from './components/home/HomeScreen';
 import { MeetingWorkspace } from './components/meeting/MeetingWorkspace';
 
 export default function App() {
   const meeting = useMeeting();
+  const [showAuth, setShowAuth] = useState(false);
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
 
   if (meeting.authLoading) {
     return (
@@ -14,9 +18,19 @@ export default function App() {
     );
   }
 
-  // Not authenticated with Google
+  // Not authenticated - show landing page
   if (!meeting.identity) {
-    return <SignInScreen meeting={meeting} />;
+    if (showAuth) {
+      return <SignInScreen meeting={meeting} onBack={() => setShowAuth(false)} />;
+    }
+
+    return (
+      <LandingPage
+        onStartMeeting={() => setShowAuth(true)}
+        onJoinMeeting={() => setShowAuth(true)}
+        onSignIn={() => setShowAuth(true)}
+      />
+    );
   }
 
   // Waiting for host to admit

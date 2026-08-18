@@ -2,8 +2,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config/config');
+const { connectDB } = require('./config/db');
 const handleApiRoutes = require('./routes/apiRoutes');
 const nativeWatchdogService = require('./services/nativeWatchdogService');
+
+// Initialize MongoDB Connection
+connectDB();
 
 const mimeTypes = {
     '.html': 'text/html',

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const sessionManager = require('../services/sessionManager');
 const googleAuthService = require('../services/googleAuthService');
 const meetingRoomService = require('../services/meetingRoomService');
@@ -17,7 +18,6 @@ function readBody(req) {
 }
 
 class SessionController {
-    // Legacy verify (backwards compat)
     verifySessionAccess(req, res) {
         readBody(req).then(body => {
             try {
@@ -43,15 +43,21 @@ class SessionController {
 
                 const session = sessionManager.createSession({ ...data, createdBy: user });
 
-                // ── KEY FIX: Reserve host slot for the creator BEFORE anyone joins ──
-                // The creator's ID comes from the frontend as data.creatorId
-                const creatorId = data.creatorId || user?.id;
-                if (creatorId) {
-                    meetingRoomService.reserveHost(session.sessionId, creatorId);
-                }
+                // Authoritative creator identity & host token
+                const hostToken = `host_tok_${crypto.randomBytes(16).toString('hex')}`;
+                const creatorId = data.creatorId || user?.id || `creator_${Date.now()}`;
+
+                meetingRoomService.reserveHost(session.sessionId, creatorId, hostToken);
 
                 res.writeHead(201, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, session }));
+                res.end(JSON.stringify({
+                    success: true,
+                    session: {
+                        ...session,
+                        hostToken,
+                        creatorId
+                    }
+                }));
             } catch (err) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: err.message }));
@@ -62,13 +68,19 @@ class SessionController {
     joinRoom(req, res) {
         readBody(req).then(body => {
             try {
-                const { roomId, user } = JSON.parse(body || '{}');
+                const { roomId, user, hostToken } = JSON.parse(body || '{}');
                 const cookies = parseCookies(req.headers.cookie);
                 const authUser = googleAuthService.getSession(cookies.securemeet_auth);
-                // Frontend tabClientId is canonical; overlay with Google identity data
-                const effectiveUser = { ...(authUser || {}), ...(user || {}) };
 
-                const result = meetingRoomService.joinRoom(roomId, effectiveUser);
+                // Preserve client tab ID as unique instance id, overlay with verified Google info
+                const effectiveUser = {
+                    name: authUser?.name || user?.name || 'Participant',
+                    email: authUser?.email || user?.email || '',
+                    picture: authUser?.picture || user?.picture || '',
+                    ...(user || {})
+                };
+
+                const result = meetingRoomService.joinRoom(roomId, effectiveUser, hostToken);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
             } catch (err) {
@@ -140,6 +152,20 @@ class SessionController {
                 const result = meetingRoomService.setScreenShare(roomId, userId, isSharing);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    updateMedia(req, res) {
+        readBody(req).then(body => {
+            try {
+                const { roomId, userId, updates } = JSON.parse(body || '{}');
+                meetingRoomService.updateMediaState(roomId, userId, updates);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
             } catch (err) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));

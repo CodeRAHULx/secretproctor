@@ -1,77 +1,66 @@
 import React, { useRef, useEffect } from 'react';
 import { VideoTile } from './VideoTile';
+import { MonitorUp } from 'lucide-react';
 
-export function ScreenShareView({ screenStream, presenterName = 'Presenter', isLocal, meeting }) {
-  const screenVideoRef = useRef(null);
+export function ScreenShareView({ screenStream, presenterName = 'Presenter', isLocal = false, meeting }) {
+  const videoRef = useRef(null);
 
   useEffect(() => {
-    if (screenVideoRef.current && screenStream) {
-      screenVideoRef.current.srcObject = screenStream;
+    if (videoRef.current && screenStream) {
+      videoRef.current.srcObject = screenStream;
     }
   }, [screenStream]);
 
-  const remotePeerIds = Object.keys(meeting.remoteStreams || {});
+  const { participants, threats } = meeting;
+  const threat = threats?.[0];
 
   return (
     <div className="screenshare-stage-layout">
-      {/* Large presenter area */}
-      <div className="screenshare-main-display">
+      {/* 1. Large Main Screen Share Viewport */}
+      <section className="screenshare-main-display">
         <div className="screenshare-video-wrapper">
           <video
-            ref={screenVideoRef}
+            ref={videoRef}
             autoPlay
             playsInline
             muted={isLocal}
             className="screenshare-video-el"
           />
           <div className="screenshare-presenter-label">
-            {isLocal ? '📤 You are presenting' : `🖥️ ${presenterName}'s screen`}
+            <MonitorUp size={16} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+            <span>{isLocal ? 'You are presenting to everyone' : `${presenterName} is presenting`}</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Participant thumbnail strip */}
-      <div className="screenshare-thumbnail-strip">
-        {/* Local self thumbnail */}
-        <VideoTile
-          name={meeting.session?.participantName || 'You'}
-          initials={meeting.initials}
-          picture={meeting.identity?.picture}
-          stream={meeting.stream}
-          muted={!meeting.media?.mic}
-          camOff={!meeting.media?.cam}
-          threatened={meeting.threats?.length > 0}
-          isLocal={true}
-          isHost={meeting.isHost}
-          size="small"
-        />
+      {/* 2. Participant Thumbnail Strip */}
+      <aside className="screenshare-thumbnail-strip">
+        {participants.map((p) => {
+          const initials = (p.name || '?')
+            .split(' ')
+            .map((w) => w[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase();
 
-        {/* Remote participants */}
-        {remotePeerIds.map((peerId) => {
-          // Skip the screen-share owner's cam tile — their screen is in the main view
-          if (!isLocal && peerId === meeting.screenShareOwner) return null;
-          const participant = meeting.participants?.find((p) => p.id === peerId);
-          const peerName = participant?.name || 'Participant';
-          const peerInitials = peerName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-          const peerStream = meeting.remoteStreams[peerId];
-          const camOff = !peerStream || peerStream.getVideoTracks().every((t) => !t.enabled);
           return (
             <VideoTile
-              key={peerId}
-              name={peerName}
-              initials={peerInitials}
-              picture={participant?.picture}
-              stream={peerStream}
-              muted={false}
-              camOff={camOff}
-              threatened={false}
-              isLocal={false}
-              isHost={participant?.role === 'host'}
+              key={p.id}
+              name={p.name}
+              initials={initials}
+              picture={p.picture}
+              stream={p.stream}
+              muted={!p.audioEnabled}
+              camOff={!p.videoEnabled}
+              threatened={p.isLocal && Boolean(threat)}
+              isLocal={p.isLocal}
+              isHost={p.role === 'host'}
+              status={p.status}
               size="small"
             />
           );
         })}
-      </div>
+      </aside>
     </div>
   );
 }

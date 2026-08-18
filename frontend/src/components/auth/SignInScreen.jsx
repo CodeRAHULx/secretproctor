@@ -1,8 +1,15 @@
-export function SignInScreen({ meeting }) {
+import { Shield, Zap, Lock } from 'lucide-react';
+
+export function SignInScreen({ meeting, onBack }) {
   const { googleSignIn, error } = meeting;
 
   return (
     <div className="signin-container">
+      {onBack && (
+        <button className="auth-back-btn" onClick={onBack}>
+          ← Back
+        </button>
+      )}
       <div className="signin-card">
         <div className="meet-brand-center">
           <svg className="meet-logo-svg" viewBox="0 0 88 72" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -32,9 +39,18 @@ export function SignInScreen({ meeting }) {
         </button>
 
         <div className="signin-features">
-          <div className="feature-pill">🛡️ Native Display Affinity Watchdog</div>
-          <div className="feature-pill">⚡ Real-time Anti-Cheat Forensics</div>
-          <div className="feature-pill">🔒 Encrypted WebRTC Conferencing</div>
+          <div className="feature-pill">
+            <Shield size={14} strokeWidth={2} />
+            <span>Native Display Affinity Watchdog</span>
+          </div>
+          <div className="feature-pill">
+            <Zap size={14} strokeWidth={2} />
+            <span>Real-time Anti-Cheat Forensics</span>
+          </div>
+          <div className="feature-pill">
+            <Lock size={14} strokeWidth={2} />
+            <span>Encrypted WebRTC Conferencing</span>
+          </div>
         </div>
 
         <p className="signin-footer">

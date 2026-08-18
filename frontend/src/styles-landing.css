@@ -1,0 +1,239 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Landing Page Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.landing-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 50%, #0f1419 100%);
+  color: var(--gm-text);
+}
+
+.landing-header {
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 16px 0;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(10px);
+}
+
+.landing-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.landing-header .landing-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-mark {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #1a73e8, #0d47a1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  color: white;
+  letter-spacing: -1px;
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--gm-text);
+}
+
+.landing-main {
+  padding: 80px 0;
+}
+
+.hero-section {
+  text-align: center;
+  margin-bottom: 120px;
+}
+
+.hero-title {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--gm-text);
+  margin-bottom: 24px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero-subtitle {
+  font-size: 20px;
+  line-height: 1.6;
+  color: var(--gm-text-secondary);
+  max-width: 720px;
+  margin: 0 auto 48px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.features-section {
+  margin-bottom: 120px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  margin-top: 48px;
+}
+
+.feature-card {
+  background: rgba(40, 41, 44, 0.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 32px;
+  transition: all 0.2s;
+}
+
+.feature-card:hover {
+  background: rgba(40, 41, 44, 0.8);
+  border-color: rgba(255,255,255,0.12);
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  color: var(--gm-blue);
+}
+
+.feature-card h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--gm-text);
+  margin-bottom: 12px;
+}
+
+.feature-card p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--gm-text-secondary);
+}
+
+.use-cases-section {
+  text-align: center;
+}
+
+.use-cases-section h2 {
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--gm-text);
+  margin-bottom: 48px;
+}
+
+.use-case-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.use-case-item {
+  background: rgba(26, 115, 232, 0.08);
+  border: 1px solid rgba(26, 115, 232, 0.2);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.use-case-item strong {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gm-blue);
+}
+
+.use-case-item span {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--gm-text-secondary);
+}
+
+.landing-footer {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 32px 0;
+  text-align: center;
+  background: rgba(0,0,0,0.3);
+}
+
+.landing-footer p {
+  font-size: 14px;
+  color: var(--gm-text-muted);
+}
+
+.auth-back-btn {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--gm-text);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 100;
+}
+
+.auth-back-btn:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 36px;
+  }
+
+  .hero-subtitle {
+    font-size: 16px;
+  }
+
+  .feature-grid,
+  .use-case-list {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .landing-main {
+    padding: 48px 0;
+  }
+
+  .hero-section {
+    margin-bottom: 60px;
+  }
+
+  .features-section {
+    margin-bottom: 60px;
+  }
+}

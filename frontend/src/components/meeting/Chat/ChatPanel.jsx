@@ -2,10 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { SUPPORTED_LANGUAGES } from '../../../hooks/useAI';
 import { Button } from '../../common/Button';
 import { Input } from '../../common/Input';
+import {
+  Send,
+  Globe,
+  Sparkles,
+  X,
+  Copy,
+  Check,
+  MessageSquare,
+  Loader2
+} from 'lucide-react';
 
 export function ChatPanel({ meeting, onClose }) {
   const [text, setText] = useState('');
   const [memoOpen, setMemoOpen] = useState(false);
+  const [memoCopied, setMemoCopied] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -21,13 +32,23 @@ export function ChatPanel({ meeting, onClose }) {
     inputRef.current?.focus();
   };
 
+  const handleCopyMemo = () => {
+    if (meeting.aiMemo?.memo) {
+      navigator.clipboard.writeText(meeting.aiMemo.memo);
+      setMemoCopied(true);
+      setTimeout(() => setMemoCopied(false), 2500);
+    }
+  };
+
   return (
     <aside className="sidebar-drawer chat-drawer">
       <div className="sidebar-drawer-header">
         <span className="sidebar-drawer-title">
           In-call messages {meeting.messages.length > 0 && <span className="msg-count">{meeting.messages.length}</span>}
         </span>
-        <button className="btn-close-drawer" onClick={onClose} aria-label="Close chat">×</button>
+        <button className="btn-close-drawer" onClick={onClose} aria-label="Close chat">
+          <X size={18} strokeWidth={2} />
+        </button>
       </div>
 
       <div className="chat-panel">
@@ -43,7 +64,17 @@ export function ChatPanel({ meeting, onClose }) {
                 onClick={() => { meeting.generateMemo(); setMemoOpen(true); }}
                 disabled={meeting.memoLoading}
               >
-                {meeting.memoLoading ? '⏳ Generating...' : '✨ AI Memo'}
+                {meeting.memoLoading ? (
+                  <>
+                    <Loader2 size={14} className="spin-icon" style={{ animation: 'spin 1s linear infinite', marginRight: '6px' }} />
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} style={{ marginRight: '6px' }} />
+                    <span>AI Memo</span>
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -55,7 +86,10 @@ export function ChatPanel({ meeting, onClose }) {
                 checked={meeting.translateEnabled}
                 onChange={(e) => meeting.setTranslateEnabled(e.target.checked)}
               />
-              <span>🌐 Translate to:</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Globe size={14} strokeWidth={2} />
+                Translate to:
+              </span>
             </label>
             <select
               className="lang-select"
@@ -75,8 +109,13 @@ export function ChatPanel({ meeting, onClose }) {
         {memoOpen && (
           <div className="ai-memo-panel">
             <div className="ai-memo-header">
-              <span>✨ AI Meeting Memo & Action Items</span>
-              <button onClick={() => { setMemoOpen(false); meeting.setAiMemo(null); }}>×</button>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={16} strokeWidth={2} color="var(--gm-blue)" />
+                AI Meeting Memo & Action Items
+              </span>
+              <button onClick={() => { setMemoOpen(false); meeting.setAiMemo(null); }} aria-label="Close memo">
+                <X size={16} strokeWidth={2} />
+              </button>
             </div>
             <div className="ai-memo-body">
               {meeting.memoLoading && (
@@ -94,9 +133,19 @@ export function ChatPanel({ meeting, onClose }) {
                     variant="secondary"
                     size="sm"
                     className="btn-copy-memo"
-                    onClick={() => navigator.clipboard.writeText(meeting.aiMemo.memo)}
+                    onClick={handleCopyMemo}
                   >
-                    Copy memo
+                    {memoCopied ? (
+                      <>
+                        <Check size={14} strokeWidth={2.5} style={{ marginRight: '4px' }} />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} strokeWidth={2} style={{ marginRight: '4px' }} />
+                        Copy memo
+                      </>
+                    )}
                   </Button>
                 </div>
               )}
@@ -108,10 +157,13 @@ export function ChatPanel({ meeting, onClose }) {
         <div className="chat-messages-list">
           {meeting.messages.length === 0 ? (
             <div className="empty-chat">
-              <span>💬</span>
+              <MessageSquare size={36} strokeWidth={1.5} color="var(--gm-text-secondary)" style={{ marginBottom: '8px' }} />
               <p>No messages yet. Send a message to start the conversation!</p>
               {meeting.aiConfigured && meeting.translateEnabled && (
-                <p className="translate-hint">🌐 Messages will be translated to {meeting.myLanguage}</p>
+                <p className="translate-hint" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  <Globe size={13} />
+                  <span>Messages will be translated to {meeting.myLanguage}</span>
+                </p>
               )}
             </div>
           ) : (
@@ -127,7 +179,11 @@ export function ChatPanel({ meeting, onClose }) {
                       title={`Translate to ${meeting.myLanguage}`}
                       disabled={meeting.translating[msg.id]}
                     >
-                      {meeting.translating[msg.id] ? '...' : '🌐'}
+                      {meeting.translating[msg.id] ? (
+                        <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                      ) : (
+                        <Globe size={13} strokeWidth={2} />
+                      )}
                     </button>
                   )}
                 </div>
@@ -160,9 +216,7 @@ export function ChatPanel({ meeting, onClose }) {
             disabled={!text.trim()}
             title="Send message"
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-            </svg>
+            <Send size={18} strokeWidth={2} />
           </button>
         </form>
       </div>

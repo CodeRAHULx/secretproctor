@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { api } from '../services/api';
 
-export function useChat(currentRoomId, tabClientId, identity) {
+export function useChat(currentRoomId, clientId, identity) {
   const [messages, setMessages] = useState([]);
   const [translating, setTranslating] = useState({});
   const [translatedMap, setTranslatedMap] = useState({});
@@ -21,14 +21,14 @@ export function useChat(currentRoomId, tabClientId, identity) {
       await api.sendChat({
         roomId: currentRoomId.current,
         message: {
-          senderId: tabClientId,
+          senderId: clientId,
           senderName: identity?.name || 'Participant',
           senderPicture: identity?.picture || '',
           text: text.trim()
         }
       });
     } catch {}
-  }, [currentRoomId, tabClientId, identity]);
+  }, [currentRoomId, clientId, identity]);
 
   const toggleTranslateMessage = useCallback(async (msg, targetLanguage) => {
     if (translatedMap[msg.id]) {

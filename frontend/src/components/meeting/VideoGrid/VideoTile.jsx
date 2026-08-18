@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Avatar } from '../../common/Avatar';
+import { Mic, MicOff, Star, AlertTriangle } from 'lucide-react';
 
 export function VideoTile({
   name,
@@ -12,6 +13,7 @@ export function VideoTile({
   isLocal = false,
   isHost = false,
   isScreenShare = false,
+  status = 'CONNECTED',
   size = 'normal' // 'normal' | 'small'
 }) {
   const videoRef = useRef(null);
@@ -37,7 +39,7 @@ export function VideoTile({
         isScreenShare ? 'is-screenshare' : ''
       ].filter(Boolean).join(' ')}
     >
-      {/* Video element — always mounted, hidden when cam is off */}
+      {/* Active Video Stream */}
       <video
         ref={videoRef}
         autoPlay
@@ -46,33 +48,50 @@ export function VideoTile({
         className={`tile-video ${hasVideo ? 'visible' : 'hidden'}`}
       />
 
-      {/* Avatar fallback when camera is off */}
+      {/* Avatar Display when Camera is Inactive */}
       {!hasVideo && (
         <div className="avatar-center-wrapper">
           <Avatar
             src={picture}
             name={name}
             size={size === 'small' ? 'md' : 'xl'}
-            status={threatened ? 'threat' : 'online'}
+            status={threatened ? 'threat' : (status === 'CONNECTED' ? 'online' : 'away')}
           />
-          <div className="tile-avatar-label">{name}{isLocal && ' (You)'}</div>
+          <div className="tile-avatar-label">
+            {name}{isLocal && ' (You)'}
+          </div>
         </div>
       )}
 
-      {/* Footer overlay */}
+      {/* Status Connecting Banner */}
+      {status === 'CONNECTING' && (
+        <div className="connecting-overlay">
+          <span className="connecting-spinner" />
+          <span>Connecting...</span>
+        </div>
+      )}
+
+      {/* Footer Info Overlay */}
       <footer className="tile-footer">
         <span className="tile-name">
           {name}{isLocal && ' (You)'}
-          {isHost && <span className="host-badge" title="Host"> ⭐</span>}
+          {isHost && (
+            <span className="host-badge" title="Meeting Host">
+              <Star size={14} strokeWidth={2} fill="currentColor" />
+            </span>
+          )}
         </span>
-        <span className={`tile-mic-badge ${muted ? 'off' : 'on'}`}>
-          {muted ? '🎤✗' : '🎤'}
+        <span className={`tile-mic-badge ${muted ? 'off' : 'on'}`} title={muted ? 'Microphone muted' : 'Microphone active'}>
+          {muted ? <MicOff size={16} /> : <Mic size={16} />}
         </span>
       </footer>
 
-      {/* Threat indicator */}
+      {/* Threat Alert Ribbon */}
       {threatened && (
-        <div className="threat-banner">⚠ Security Alert</div>
+        <div className="threat-banner">
+          <AlertTriangle size={16} />
+          <span>Proctor Threat Detected</span>
+        </div>
       )}
     </article>
   );

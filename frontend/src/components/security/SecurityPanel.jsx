@@ -1,3 +1,16 @@
+import React from 'react';
+import {
+  X,
+  Zap,
+  Check,
+  AlertCircle,
+  FileText,
+  Download,
+  Shield,
+  Clock,
+  Info
+} from 'lucide-react';
+
 function DetectionTab({ threat, checks, onKillThreat }) {
   return (
     <div className="guard-body">
@@ -27,8 +40,10 @@ function DetectionTab({ threat, checks, onKillThreat }) {
           <button
             className="btn-terminate-threat"
             onClick={() => onKillThreat(threat.pid, threat.hwnd)}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            ⚡ Terminate Cheat Process
+            <Zap size={14} strokeWidth={2} />
+            <span>Terminate Cheat Process</span>
           </button>
         </section>
       )}
@@ -37,7 +52,13 @@ function DetectionTab({ threat, checks, onKillThreat }) {
       <div className="checks-list">
         {checks.map(([name, value, state]) => (
           <div className={`check-item ${state}`} key={name}>
-            <span className="check-icon">{state === 'ok' ? '✓' : '!'}</span>
+            <span className="check-icon">
+              {state === 'ok' ? (
+                <Check size={14} strokeWidth={2.5} />
+              ) : (
+                <AlertCircle size={14} strokeWidth={2.5} />
+              )}
+            </span>
             <span className="check-name">{name}</span>
             <strong className="check-val">{value}</strong>
           </div>
@@ -71,8 +92,13 @@ function ActivityTab({ logs, clear, exportAudit }) {
         )}
       </div>
 
-      <button className="btn-export-audit" onClick={exportAudit}>
-        📄 Export Forensic Audit Report (JSON)
+      <button
+        className="btn-export-audit"
+        onClick={exportAudit}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+      >
+        <Download size={14} strokeWidth={2} />
+        <span>Export Forensic Audit Report (JSON)</span>
       </button>
     </div>
   );
@@ -115,7 +141,9 @@ export function SecurityPanel({ tab, setTab, threat, meeting, onClose }) {
           <p className="guard-eyebrow">INTEGRITY SHIELD</p>
           <h2 className="guard-title">Session Guard</h2>
         </div>
-        <button onClick={onClose} className="btn-close-guard" aria-label="Close panel">×</button>
+        <button onClick={onClose} className="btn-close-guard" aria-label="Close panel">
+          <X size={18} strokeWidth={2} />
+        </button>
       </header>
 
       <nav className="guard-nav">

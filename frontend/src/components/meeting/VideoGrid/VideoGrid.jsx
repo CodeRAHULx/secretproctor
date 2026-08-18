@@ -4,25 +4,27 @@ import { WaitingTile } from './WaitingTile';
 import { ScreenShareView } from './ScreenShareView';
 
 export function VideoGrid({ meeting, onCopyLink, linkCopied }) {
-  const remotePeerIds = Object.keys(meeting.remoteStreams || {});
+  const { participants, screenShareOwner, tabClientId, amSharing } = meeting;
   const threat = meeting.threats?.[0];
 
-  // Screen share logic — server-authoritative
-  const { screenShareOwner, tabClientId, amSharing } = meeting;
-  const someoneIsSharing = Boolean(screenShareOwner);
-  const remoteSharerStream = screenShareOwner && screenShareOwner !== tabClientId
-    ? meeting.remoteStreams?.[screenShareOwner]
-    : null;
+  const remoteParticipants = participants.filter((p) => !p.isLocal);
+  const localParticipant = participants.find((p) => p.isLocal) || {
+    name: meeting.session?.participantName || 'You',
+    initials: meeting.initials,
+    stream: meeting.stream,
+    audioEnabled: meeting.media?.mic,
+    videoEnabled: meeting.media?.cam,
+    role: meeting.isHost ? 'host' : 'participant',
+    isLocal: true
+  };
 
-  // Show screen share layout when:
-  // (a) we are sharing our own screen, OR
-  // (b) a remote participant is sharing (and we received their stream)
-  if (someoneIsSharing && (amSharing || remoteSharerStream)) {
-    const shareStream = amSharing ? meeting.screenStream : remoteSharerStream;
-    const sharerParticipant = amSharing
-      ? { name: meeting.session?.participantName || 'You' }
-      : meeting.participants?.find((p) => p.id === screenShareOwner);
-    const presenterName = sharerParticipant?.name || 'Presenter';
+  // Screen share view active when presenter exists
+  if (screenShareOwner) {
+    const sharerParticipant = participants.find((p) => p.id === screenShareOwner);
+    const presenterName = amSharing ? 'You' : (sharerParticipant?.name || 'Presenter');
+    const shareStream = amSharing
+      ? meeting.screenStream
+      : (meeting.remoteStreams?.[screenShareOwner] || sharerParticipant?.stream);
 
     return (
       <ScreenShareView
@@ -34,50 +36,44 @@ export function VideoGrid({ meeting, onCopyLink, linkCopied }) {
     );
   }
 
-  const hasRemotePeers = remotePeerIds.length > 0;
-  const gridClass = hasRemotePeers
-    ? `video-grid multi-peer peers-${remotePeerIds.length + 1}`
-    : 'video-grid solo';
+  // Normal Grid Mode
+  const totalCount = participants.length;
+  let layoutClass = 'video-grid layout-solo';
+  if (totalCount === 2) {
+    layoutClass = 'video-grid layout-duo';
+  } else if (totalCount >= 3) {
+    layoutClass = `video-grid layout-multi count-${totalCount}`;
+  }
 
   return (
-    <div className={gridClass}>
-      {/* Local video */}
-      <VideoTile
-        name={meeting.session?.participantName || meeting.identity?.name || 'You'}
-        initials={meeting.initials}
-        picture={meeting.identity?.picture}
-        stream={meeting.stream}
-        muted={!meeting.media?.mic}
-        camOff={!meeting.media?.cam}
-        threatened={Boolean(threat)}
-        isLocal={true}
-        isHost={meeting.isHost}
-      />
+    <div className={layoutClass}>
+      {participants.map((p) => {
+        const initials = (p.name || '?')
+          .split(' ')
+          .map((w) => w[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase();
 
-      {/* Remote peers */}
-      {hasRemotePeers ? (
-        remotePeerIds.map((peerId) => {
-          const participant = meeting.participants?.find((p) => p.id === peerId);
-          const peerName = participant?.name || 'Participant';
-          const peerInitials = peerName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-          const peerStream = meeting.remoteStreams[peerId];
-          const camOff = !peerStream || peerStream.getVideoTracks().every((t) => !t.enabled);
-          return (
-            <VideoTile
-              key={peerId}
-              name={peerName}
-              initials={peerInitials}
-              picture={participant?.picture}
-              stream={peerStream}
-              muted={false}
-              camOff={camOff}
-              threatened={false}
-              isLocal={false}
-              isHost={participant?.role === 'host'}
-            />
-          );
-        })
-      ) : (
+        return (
+          <VideoTile
+            key={p.id}
+            name={p.name}
+            initials={initials}
+            picture={p.picture}
+            stream={p.stream}
+            muted={!p.audioEnabled}
+            camOff={!p.videoEnabled}
+            threatened={p.isLocal && Boolean(threat)}
+            isLocal={p.isLocal}
+            isHost={p.role === 'host'}
+            status={p.status}
+          />
+        );
+      })}
+
+      {/* When waiting alone in room */}
+      {remoteParticipants.length === 0 && (
         <WaitingTile
           sessionId={meeting.session?.sessionId}
           onCopyLink={onCopyLink}

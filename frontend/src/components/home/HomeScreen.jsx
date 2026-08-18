@@ -1,20 +1,33 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Link,
+  Video,
+  Shield,
+  Plus,
+  LogOut,
+  Keyboard,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Check
+} from 'lucide-react';
 
 const carouselSlides = [
   {
     title: "Get a link you can share",
     desc: "Click New meeting to get a link you can send to people you want to meet with.",
-    icon: "🔗"
+    icon: Link
   },
   {
     title: "Background Proctor & Watchdog",
     desc: "Silently monitors display affinity (WDA_EXCLUDEFROMCAPTURE) and tab integrity.",
-    icon: "🛡️"
+    icon: Shield
   },
   {
     title: "Your meeting is protected",
     desc: "Enterprise integrity monitoring ensures tamper-proof technical evaluations.",
-    icon: "🔒"
+    icon: Video
   }
 ];
 
@@ -86,6 +99,8 @@ export function HomeScreen({ meeting }) {
     setTimeout(() => setCopied(false), 3000);
   };
 
+  const CurrentSlideIcon = carouselSlides[slideIndex].icon;
+
   return (
     <div className="meet-home">
       {/* Top App Bar */}
@@ -141,9 +156,7 @@ export function HomeScreen({ meeting }) {
                 <div className="account-dropdown-divider" />
 
                 <button className="account-signout-btn" onClick={logout}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-                  </svg>
+                  <LogOut size={16} strokeWidth={2} />
                   <span>Sign out</span>
                 </button>
               </div>
@@ -173,18 +186,14 @@ export function HomeScreen({ meeting }) {
                 onClick={() => setNewMeetingDropdown(!newMeetingDropdown)}
                 disabled={joining}
               >
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                  <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-                </svg>
+                <Video size={18} strokeWidth={2} />
                 <span>New meeting</span>
               </button>
 
               {newMeetingDropdown && (
                 <div className="new-meeting-dropdown">
                   <button className="dropdown-item" onClick={handleCreateLater}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                      <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
-                    </svg>
+                    <Link size={18} strokeWidth={2} />
                     <div>
                       <div className="item-title">Create a meeting for later</div>
                       <div className="item-desc">Generate a join code and shareable link</div>
@@ -192,9 +201,7 @@ export function HomeScreen({ meeting }) {
                   </button>
 
                   <button className="dropdown-item" onClick={handleInstant}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                      <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                    </svg>
+                    <Plus size={18} strokeWidth={2} />
                     <div>
                       <div className="item-title">Start an instant meeting</div>
                       <div className="item-desc">Join immediately with background proctoring</div>
@@ -207,9 +214,7 @@ export function HomeScreen({ meeting }) {
             {/* Code / Link input & Join button */}
             <form className="meet-join-form" onSubmit={handleJoin}>
               <div className="meet-input-wrapper">
-                <svg className="keyboard-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                  <path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/>
-                </svg>
+                <Keyboard size={18} strokeWidth={2} className="keyboard-icon" />
                 <input
                   type="text"
                   className="meet-code-input"
@@ -233,8 +238,13 @@ export function HomeScreen({ meeting }) {
           {createdSession && (
             <div className="created-meeting-section">
               <div className="created-meeting-header">
-                <span className="created-badge">✓ Meeting Created</span>
-                <button className="btn-close-created" onClick={() => setCreatedSession(null)}>×</button>
+                <span className="created-badge">
+                  <Check size={14} strokeWidth={2.5} style={{ marginRight: '4px' }} />
+                  Meeting Created
+                </span>
+                <button className="btn-close-created" onClick={() => setCreatedSession(null)} aria-label="Close">
+                  <X size={16} strokeWidth={2} />
+                </button>
               </div>
 
               <div className="created-code-row">
@@ -247,7 +257,17 @@ export function HomeScreen({ meeting }) {
                   className="btn-copy-code"
                   onClick={() => copyToClipboard(createdSession.url || createdSession.code)}
                 >
-                  {copied ? '✓ Copied' : 'Copy link'}
+                  {copied ? (
+                    <>
+                      <Check size={14} strokeWidth={2.5} />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} strokeWidth={2} />
+                      <span>Copy link</span>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -276,7 +296,7 @@ export function HomeScreen({ meeting }) {
           <div className="carousel-card">
             <div className="carousel-illustration">
               <div className="illustration-circle">
-                <span className="carousel-icon-large">{carouselSlides[slideIndex].icon}</span>
+                <CurrentSlideIcon size={56} strokeWidth={1.5} className="carousel-icon-large" />
               </div>
             </div>
 
@@ -289,7 +309,7 @@ export function HomeScreen({ meeting }) {
                 onClick={() => setSlideIndex((slideIndex - 1 + carouselSlides.length) % carouselSlides.length)}
                 aria-label="Previous slide"
               >
-                ‹
+                <ChevronLeft size={20} strokeWidth={2} />
               </button>
 
               <div className="carousel-dots">
@@ -307,7 +327,7 @@ export function HomeScreen({ meeting }) {
                 onClick={() => setSlideIndex((slideIndex + 1) % carouselSlides.length)}
                 aria-label="Next slide"
               >
-                ›
+                <ChevronRight size={20} strokeWidth={2} />
               </button>
             </div>
           </div>

@@ -3,6 +3,17 @@ import { Card } from '../../common/Card';
 import { Badge } from '../../common/Badge';
 import { Button } from '../../common/Button';
 import { Avatar } from '../../common/Avatar';
+import {
+  X,
+  AlertTriangle,
+  Zap,
+  Users,
+  ShieldCheck,
+  Download,
+  Activity,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
 
 export function HostDashboard({ meeting, onClose }) {
   const threatCount = meeting.threats.length;
@@ -15,7 +26,9 @@ export function HostDashboard({ meeting, onClose }) {
           <span className="dashboard-eyebrow">HOST PROCTOR COMMAND CENTER</span>
           <h2 className="sidebar-drawer-title">Live Evaluation Oversight</h2>
         </div>
-        <button className="btn-close-drawer" onClick={onClose} aria-label="Close dashboard">×</button>
+        <button className="btn-close-drawer" onClick={onClose} aria-label="Close dashboard">
+          <X size={18} strokeWidth={2} />
+        </button>
       </div>
 
       <div className="host-dashboard-body">
@@ -47,7 +60,10 @@ export function HostDashboard({ meeting, onClose }) {
         {threatCount > 0 && (
           <div className="dashboard-section threats-section">
             <div className="section-head">
-              <h3>🚨 Active Cheat / Stealth Detections</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--gm-red)' }}>
+                <AlertTriangle size={18} strokeWidth={2} />
+                Active Cheat / Stealth Detections
+              </h3>
               <Badge variant="danger">{threatCount} detected</Badge>
             </div>
             {meeting.threats.map((threat, idx) => (
@@ -68,8 +84,10 @@ export function HostDashboard({ meeting, onClose }) {
                   variant="danger"
                   size="sm"
                   onClick={() => meeting.killActiveThreat(threat.pid, threat.hwnd)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  ⚡ Terminate Cheat Process
+                  <Zap size={14} strokeWidth={2} />
+                  <span>Terminate Cheat Process</span>
                 </Button>
               </div>
             ))}
@@ -79,7 +97,10 @@ export function HostDashboard({ meeting, onClose }) {
         {/* Participants Roster */}
         <div className="dashboard-section">
           <div className="section-head">
-            <h3>👥 Connected Participants</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Users size={18} strokeWidth={2} />
+              Connected Participants
+            </h3>
             <span className="section-count">{participantCount}</span>
           </div>
 
@@ -118,7 +139,10 @@ export function HostDashboard({ meeting, onClose }) {
         {/* System & Environmental Integrity Checks */}
         <div className="dashboard-section">
           <div className="section-head">
-            <h3>🛡️ Real-Time Integrity Checks</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ShieldCheck size={18} strokeWidth={2} />
+              Real-Time Integrity Checks
+            </h3>
           </div>
           <div className="dashboard-checks-list">
             {meeting.checks.map(([name, status, state], idx) => (
@@ -132,8 +156,13 @@ export function HostDashboard({ meeting, onClose }) {
 
         {/* Actions Footer */}
         <div className="dashboard-actions-footer">
-          <Button variant="secondary" onClick={meeting.exportAudit}>
-            📥 Export Forensic Audit Report (.JSON)
+          <Button
+            variant="secondary"
+            onClick={meeting.exportAudit}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', width: '100%', justifyContent: 'center' }}
+          >
+            <Download size={16} strokeWidth={2} />
+            <span>Export Forensic Audit Report (.JSON)</span>
           </Button>
         </div>
       </div>
