@@ -136,6 +136,39 @@ export function HostDashboard({ meeting, onClose }) {
           </div>
         </div>
 
+        {/* Waiting for Admission */}
+        {meeting.knockRequests.length > 0 && (
+          <div className="dashboard-section">
+            <div className="section-head">
+              <h3>Waiting for Admission</h3>
+              <Badge variant="warning">{meeting.knockRequests.length}</Badge>
+            </div>
+            <div className="knock-requests-list">
+              {meeting.knockRequests.map((guest) => (
+                <div className="knock-request-item" key={guest.id}>
+                  <div className="guest-info">
+                    <div className="guest-avatar">
+                      {guest.picture ? (
+                        <img src={guest.picture} alt={guest.name} />
+                      ) : (
+                        <div className="avatar-placeholder">{guest.name?.[0] || '?'}</div>
+                      )}
+                    </div>
+                    <div className="guest-details">
+                      <span className="guest-name">{guest.name}</span>
+                      <span className="guest-timestamp">Waiting to join</span>
+                    </div>
+                  </div>
+                  <div className="admit-actions">
+                    <Button variant="danger" size="sm" onClick={() => meeting.admitGuest(guest.id, 'deny')}>Deny</Button>
+                    <Button variant="primary" size="sm" onClick={() => meeting.admitGuest(guest.id, 'admit')}>Admit</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* System & Environmental Integrity Checks */}
         <div className="dashboard-section">
           <div className="section-head">

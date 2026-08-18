@@ -46,40 +46,52 @@ export function VideoGrid({ meeting, onCopyLink, linkCopied }) {
   }
 
   return (
-    <div className={layoutClass}>
-      {participants.map((p) => {
-        const initials = (p.name || '?')
-          .split(' ')
-          .map((w) => w[0])
-          .join('')
-          .slice(0, 2)
-          .toUpperCase();
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div className={layoutClass}>
+        {participants.map((p) => {
+          const initials = (p.name || '?')
+            .split(' ')
+            .map((w) => w[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase();
 
-        return (
-          <VideoTile
-            key={p.id}
-            name={p.name}
-            initials={initials}
-            picture={p.picture}
-            stream={p.stream}
-            muted={!p.audioEnabled}
-            camOff={!p.videoEnabled}
-            threatened={p.isLocal && Boolean(threat)}
-            isLocal={p.isLocal}
-            isHost={p.role === 'host'}
-            status={p.status}
-          />
-        );
-      })}
+          return (
+            <VideoTile
+              key={p.id}
+              name={p.name}
+              initials={initials}
+              picture={p.picture}
+              stream={p.stream}
+              muted={!p.audioEnabled}
+              camOff={!p.videoEnabled}
+              threatened={p.isLocal && Boolean(threat)}
+              isLocal={p.isLocal}
+              isHost={p.role === 'host'}
+              status={p.status}
+            />
+          );
+        })}
+      </div>
 
-      {/* When waiting alone in room */}
+      {/* When waiting alone in room - overlay at bottom center */}
       {remoteParticipants.length === 0 && (
-        <WaitingTile
-          sessionId={meeting.session?.sessionId}
-          onCopyLink={onCopyLink}
-          linkCopied={linkCopied}
-          aiConfigured={meeting.aiConfigured}
-        />
+        <div style={{
+          position: 'absolute',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10,
+          maxWidth: '500px',
+          width: '90%'
+        }}>
+          <WaitingTile
+            sessionId={meeting.session?.sessionId}
+            onCopyLink={onCopyLink}
+            linkCopied={linkCopied}
+            aiConfigured={meeting.aiConfigured}
+          />
+        </div>
       )}
     </div>
   );

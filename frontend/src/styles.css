@@ -2499,6 +2499,97 @@ button, input, select {
   gap: 6px;
 }
 
+.knock-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knock-request-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #2b2c30;
+  border-radius: var(--gm-radius-sm);
+  padding: 10px 12px;
+  gap: 12px;
+}
+
+.knock-request-item .guest-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.knock-request-item .guest-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.knock-request-item .guest-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.knock-request-item .avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gm-purple);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.knock-request-item .guest-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.knock-request-item .guest-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gm-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knock-request-item .guest-timestamp {
+  font-size: 11px;
+  color: var(--gm-text-secondary);
+}
+
+.knock-request-item .admit-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.knock-request-item .admit-actions button {
+  padding: 6px 12px;
+  font-size: 12px;
+  height: auto;
+  min-width: 60px;
+}
+
+.dashboard-checks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .dashboard-check-item {
   display: flex;
   align-items: center;

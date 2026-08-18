@@ -43,12 +43,13 @@ class GoogleAuthService {
         }
     }
 
-    createAuthorizationUrl(req) {
+    createAuthorizationUrl(req, returnTo = '/') {
         const redirectUri = this.getRedirectUri(req);
         // Stateless state token valid for 15 minutes
         const state = this.signPayload({
             nonce: crypto.randomBytes(16).toString('hex'),
             redirectUri,
+            returnTo,
             exp: Date.now() + 15 * 60 * 1000
         });
 

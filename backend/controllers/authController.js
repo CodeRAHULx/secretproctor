@@ -14,9 +14,11 @@ class AuthController {
 
     startGoogle(req, res) {
         if (!googleAuthService.enabled) return this.redirect(res, '/?auth=not-configured');
-        const { state, url } = googleAuthService.createAuthorizationUrl(req);
+        const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const returnTo = url.searchParams.get('returnTo') || '/';
+        const { state, url: authUrl } = googleAuthService.createAuthorizationUrl(req, returnTo);
         res.writeHead(302, {
-            Location: url,
+            Location: authUrl,
             'Set-Cookie': `securemeet_oauth_state=${state}; HttpOnly; SameSite=Lax; Path=/; Max-Age=900`
         });
         res.end();
@@ -35,8 +37,10 @@ class AuthController {
         try {
             const user = await googleAuthService.exchangeCode(code, req, state);
             const sessionToken = googleAuthService.createSession(user);
+            const stateData = googleAuthService.verifyPayload(state);
+            const returnTo = stateData?.returnTo || '/';
             res.writeHead(302, {
-                Location: '/',
+                Location: returnTo,
                 'Set-Cookie': [
                     `securemeet_auth=${sessionToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`,
                     `securemeet_oauth_state=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`

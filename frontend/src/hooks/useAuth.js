@@ -28,7 +28,9 @@ export function useAuth() {
   }, []);
 
   const googleSignIn = () => {
-    window.location.assign('/api/auth/google');
+    // Preserve current URL params (especially ?room=)
+    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.assign(`/api/auth/google?returnTo=${returnTo}`);
   };
 
   const logout = async () => {
