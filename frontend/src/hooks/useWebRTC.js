@@ -70,7 +70,10 @@ export function useWebRTC(currentRoomId, clientId, localStreamRef, screenStreamR
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peerConnections.current.set(remotePeerId, pc);
-    candidateQueues.current.set(remotePeerId, []);
+    // Preserve any ICE candidates that arrived before the offer/connection was created
+    if (!candidateQueues.current.has(remotePeerId)) {
+      candidateQueues.current.set(remotePeerId, []);
+    }
 
     // 1. Add Audio Track (from local mic)
     if (localStreamRef?.current) {
