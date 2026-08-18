@@ -48,7 +48,7 @@ module.exports = {
         KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || ''
     },
     SESSION_SECRET: process.env.SESSION_SECRET || 'securemeet-super-secret-hmac-key-2026',
-    FRONTEND_URL: (process.env.FRONTEND_URL || 'https://securemeet-privatedoc.vercel.app').replace(/\/+$/, ''),
+    FRONTEND_URL: (process.env.FRONTEND_URL || 'https://securemeet.vercel.app').replace(/\/+$/, ''),
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS
         ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean)
         : [],
