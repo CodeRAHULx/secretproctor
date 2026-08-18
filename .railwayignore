@@ -1,0 +1,53 @@
+# Railway Ignore - Exclude from deployment
+
+# Frontend (deployed separately on Vercel)
+frontend/
+*.md
+!RAILWAY_DEPLOYMENT_GUIDE.md
+
+# Native binaries (Windows .exe won't work on Linux)
+native/
+
+# AI service (optional, deploy separately if needed)
+ai-service/
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+*.log
+*.DS_Store
+Thumbs.db
+
+# Environment files (use Railway dashboard for env vars)
+.env
+.env.local
+.env.development
+.env.test
+backend/.env
+
+# Test files
+**/__tests__/
+**/*.test.js
+**/*.spec.js
+
+# Documentation
+docs/
+TESTING_GUIDE.md
+DEPLOYMENT_INFO.md
+
+# Vercel artifacts
+.vercel/
+vercel.json
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Misc
+*.bak
+*.swp
+*.swo
+*~

@@ -27,14 +27,18 @@ for (const envPath of envPaths) {
     }
 }
 
+// Detect production environment
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT === 'production';
+
 module.exports = {
     PORT: process.env.PORT || 3000,
-    HOST: process.env.HOST || 'localhost',
+    HOST: process.env.HOST || '0.0.0.0', // Changed from 'localhost' to accept all connections
     SCAN_INTERVAL_MS: 1000,
     GOOGLE: {
         CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
         CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
-        REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || `http://${process.env.HOST || 'localhost'}:${process.env.PORT || 3000}/api/auth/google/callback`
+        // Production: use env var (required). Development: auto-generate from HOST/PORT
+        REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || (isProduction ? '' : `http://localhost:3000/api/auth/google/callback`)
     },
     MONGODB: {
         URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/securemeet'
@@ -49,5 +53,6 @@ module.exports = {
         NATIVE_BIN: path.join(__dirname, '../../native/bin'),
         DETECTOR_EXE: path.join(__dirname, '../../native/bin/display_affinity_detector.exe'),
         AUDIT_LOGS_DIR: path.join(__dirname, '../logs')
-    }
+    },
+    IS_PRODUCTION: isProduction
 };

@@ -9,27 +9,28 @@ class NativeWatchdogService {
         this.currentThreats = [];
         this.subscribers = [];
         this.isScanning = false;
+        this.isWindows = process.platform === 'win32';
+        this.detectorAvailable = this.isWindows && fs.existsSync(this.detectorPath);
     }
 
     start(intervalMs = config.SCAN_INTERVAL_MS) {
+        if (!this.detectorAvailable) {
+            console.log('[NativeWatchdogService] Native detector not available (Linux/Mac or missing .exe). Proctoring features disabled.');
+            return;
+        }
         console.log(`[NativeWatchdogService] Monitoring active with native engine: ${this.detectorPath}`);
         this.scan();
         setInterval(() => this.scan(), intervalMs);
     }
 
     scan() {
-        if (this.isScanning) return;
+        if (this.isScanning || !this.detectorAvailable) return;
         this.isScanning = true;
-
-        if (!fs.existsSync(this.detectorPath)) {
-            this.isScanning = false;
-            return;
-        }
 
         exec(`"${this.detectorPath}" --json`, { timeout: 2500 }, (error, stdout, stderr) => {
             this.isScanning = false;
             const output = stdout || '';
-            
+
             // Parse structured JSON directly from C++ output
             this.currentThreats = ThreatModel.parseFromJson(output);
 
@@ -46,6 +47,19 @@ class NativeWatchdogService {
 
     subscribe(res) {
         this.subscribers.push(res);
+        // If detector is not available, send empty status immediately
+        if (!this.detectorAvailable) {
+            const payload = {
+                timestamp: new Date().toISOString(),
+                hasThreat: false,
+                threatCount: 0,
+                threats: [],
+                detectorDisabled: true
+            };
+            try {
+                res.write(`data: ${JSON.stringify(payload)}\n\n`);
+            } catch (e) {}
+        }
     }
 
     unsubscribe(res) {
@@ -63,6 +77,9 @@ class NativeWatchdogService {
 
     killProcess(pid) {
         return new Promise((resolve, reject) => {
+            if (!this.detectorAvailable) {
+                return reject(new Error('Process kill not available on this platform'));
+            }
             if (!pid) return reject(new Error('Invalid PID'));
             exec(`taskkill /F /PID ${parseInt(pid, 10)}`, (err, stdout, stderr) => {
                 if (err) {

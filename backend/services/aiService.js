@@ -4,13 +4,21 @@ const logger = require('../utils/logger');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = 'gemini-1.5-flash-latest';
-const PYTHON_AI_URL = process.env.PYTHON_AI_URL || 'http://127.0.0.1:8000';
+// In production, Python AI service is optional. If not set, falls back to Gemini API
+const PYTHON_AI_URL = process.env.PYTHON_AI_URL || '';
 
 function callPythonService(endpoint, body) {
     return new Promise((resolve, reject) => {
+        // If Python AI URL is not configured, skip the service call
+        if (!PYTHON_AI_URL) {
+            return reject(new Error('Python AI service not configured'));
+        }
+
         const url = new URL(endpoint, PYTHON_AI_URL);
         const data = JSON.stringify(body);
-        const req = http.request({
+        const protocol = url.protocol === 'https:' ? https : http;
+
+        const req = protocol.request({
             hostname: url.hostname,
             port: url.port,
             path: url.pathname,

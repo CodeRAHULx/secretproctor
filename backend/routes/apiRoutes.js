@@ -6,7 +6,20 @@ const authController = require('../controllers/authController');
 const aiController = require('../controllers/aiController');
 
 function setCorsHeaders(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    const allowedOrigins = [
+        'https://securemeet-privatedoc.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:3000'
+    ];
+
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (process.env.NODE_ENV !== 'production') {
+        // In development, allow any origin
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    }
+
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
@@ -27,6 +40,18 @@ function handleApiRoutes(req, res) {
     // Intercept all /api/ endpoints
     if (pathname.startsWith('/api/')) {
         setCorsHeaders(req, res);
+
+        // ── Health Check ──────────────────────────────────────────────────────
+        if (pathname === '/api/health' && req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                uptime: process.uptime(),
+                environment: process.env.NODE_ENV || 'development'
+            }));
+            return true;
+        }
 
         // ── Auth ──────────────────────────────────────────────────────────────
         if (pathname === '/api/auth/google/status' && req.method === 'GET') {
