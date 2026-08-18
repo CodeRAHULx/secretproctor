@@ -357,6 +357,10 @@ export function useMeeting() {
   useEffect(() => { onSSEMessageRef.current = onSSEMessage; }, [onSSEMessage]);
 
   const connectRoomSSE = useCallback((roomId, userIdParam, connectionIdParam) => {
+    if (!roomId || !roomId.trim() || !userIdParam || !connectionIdParam) {
+      console.warn('[SSE] Aborting connection with incomplete parameters:', { roomId, userIdParam, connectionIdParam });
+      return;
+    }
     if (sseConnected.current) return;
 
     if (roomSseRef.current) {
@@ -367,7 +371,7 @@ export function useMeeting() {
     // SSE connection identified by connectionId (ephemeral)
     // But userId sent for host identification
     const sse = new EventSource(
-      `${API_BASE_URL}/api/room/events?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(userIdParam)}&connectionId=${encodeURIComponent(connectionIdParam)}`
+      `${API_BASE_URL}/api/room/events?roomId=${encodeURIComponent(roomId.trim())}&userId=${encodeURIComponent(userIdParam)}&connectionId=${encodeURIComponent(connectionIdParam)}`
     );
     roomSseRef.current = sse;
     sseConnected.current = true;
