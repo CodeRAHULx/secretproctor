@@ -145,7 +145,7 @@ export function HostDashboard({ meeting, onClose }) {
             </div>
             <div className="knock-requests-list">
               {meeting.knockRequests.map((guest) => (
-                <div className="knock-request-item" key={guest.id}>
+                <div className="knock-request-item" key={guest.userId}>
                   <div className="guest-info">
                     <div className="guest-avatar">
                       {guest.picture ? (
@@ -160,8 +160,8 @@ export function HostDashboard({ meeting, onClose }) {
                     </div>
                   </div>
                   <div className="admit-actions">
-                    <Button variant="danger" size="sm" onClick={() => meeting.admitGuest(guest.id, 'deny')}>Deny</Button>
-                    <Button variant="primary" size="sm" onClick={() => meeting.admitGuest(guest.id, 'admit')}>Admit</Button>
+                    <Button variant="danger" size="sm" onClick={() => meeting.admitGuest(guest.userId, 'deny')}>Deny</Button>
+                    <Button variant="primary" size="sm" onClick={() => meeting.admitGuest(guest.userId, 'admit')}>Admit</Button>
                   </div>
                 </div>
               ))}

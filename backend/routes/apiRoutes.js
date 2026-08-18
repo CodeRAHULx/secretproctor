@@ -76,6 +76,12 @@ function handleApiRoutes(req, res) {
         if (pathname === '/api/room/leave' && req.method === 'POST') {
             sessionController.leaveRoom(req, res); return true;
         }
+        if (pathname === '/api/room/end' && req.method === 'POST') {
+            sessionController.endMeeting(req, res); return true;
+        }
+        if (pathname === '/api/room/transfer-host' && req.method === 'POST') {
+            sessionController.transferHost(req, res); return true;
+        }
 
         // ── AI Features ───────────────────────────────────────────────────────
         if (pathname === '/api/ai/translate' && req.method === 'POST') {

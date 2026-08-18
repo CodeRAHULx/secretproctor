@@ -1,0 +1,11 @@
+
+> securemeet-backend@1.0.0 start
+> node server.js
+
+🔄 [MongoDB] Connecting to mongodb+srv:****@cluster0.jgu9ust.mongodb.net/securemeet?retryWrites=true&w=majority...
+[NativeWatchdogService] Monitoring active with native engine: D:\learning\SecureMeet\native\bin\display_affinity_detector.exe
+
+❌ Port 3000 is already in use.
+   Run this to free it:
+   for /f "tokens=5" %a in ('netstat -ano ^| findstr :3000') do taskkill /PID %a /F
+

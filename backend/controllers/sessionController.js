@@ -45,9 +45,11 @@ class SessionController {
 
                 // Authoritative creator identity & host token
                 const hostToken = `host_tok_${crypto.randomBytes(16).toString('hex')}`;
-                const creatorId = data.creatorId || user?.id || `creator_${Date.now()}`;
+                const creatorUserId = data.creatorUserId || user?.id || `guest_${Date.now()}`;
 
-                meetingRoomService.reserveHost(session.sessionId, creatorId, hostToken);
+                console.log('[SessionController] Creating meeting - creatorUserId:', creatorUserId);
+
+                meetingRoomService.reserveHost(session.sessionId, creatorUserId, hostToken);
 
                 res.writeHead(201, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -55,10 +57,11 @@ class SessionController {
                     session: {
                         ...session,
                         hostToken,
-                        creatorId
+                        creatorUserId
                     }
                 }));
             } catch (err) {
+                console.error('[SessionController] Create session error:', err);
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: err.message }));
             }
@@ -94,23 +97,26 @@ class SessionController {
         const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
         const roomId = url.searchParams.get('roomId');
         const userId = url.searchParams.get('userId');
+        const connectionId = url.searchParams.get('connectionId');
 
-        if (!roomId || !userId) {
+        if (!roomId || !userId || !connectionId) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Missing roomId or userId' }));
+            res.end(JSON.stringify({ error: 'Missing roomId, userId, or connectionId' }));
             return;
         }
-        meetingRoomService.registerSSE(roomId, userId, res);
+        meetingRoomService.registerSSE(roomId, userId, connectionId, res);
     }
 
     admitGuest(req, res) {
         readBody(req).then(body => {
             try {
-                const { roomId, guestId, action } = JSON.parse(body || '{}');
-                const result = meetingRoomService.admitGuest(roomId, guestId, action);
+                const { roomId, guestUserId, action } = JSON.parse(body || '{}');
+                console.log('[SessionController] Admit guest - guestUserId:', guestUserId, 'action:', action);
+                const result = meetingRoomService.admitGuest(roomId, guestUserId, action);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
             } catch (err) {
+                console.error('[SessionController] Admit guest error:', err);
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));
             }
@@ -162,8 +168,8 @@ class SessionController {
     updateMedia(req, res) {
         readBody(req).then(body => {
             try {
-                const { roomId, userId, updates } = JSON.parse(body || '{}');
-                meetingRoomService.updateMediaState(roomId, userId, updates);
+                const { roomId, userId, connectionId, ...updates } = JSON.parse(body || '{}');
+                meetingRoomService.updateMediaState(roomId, userId, connectionId, updates);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));
             } catch (err) {
@@ -176,10 +182,38 @@ class SessionController {
     leaveRoom(req, res) {
         readBody(req).then(body => {
             try {
-                const { roomId, userId } = JSON.parse(body || '{}');
-                meetingRoomService.leaveRoom(roomId, userId);
+                const { roomId, userId, connectionId } = JSON.parse(body || '{}');
+                meetingRoomService.leaveRoom(roomId, userId, connectionId);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    endMeeting(req, res) {
+        readBody(req).then(body => {
+            try {
+                const { roomId, hostUserId } = JSON.parse(body || '{}');
+                const result = meetingRoomService.endMeeting(roomId, hostUserId);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            } catch (err) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+    }
+
+    transferHost(req, res) {
+        readBody(req).then(body => {
+            try {
+                const { roomId, currentHostUserId, newHostUserId } = JSON.parse(body || '{}');
+                const result = meetingRoomService.transferHost(roomId, currentHostUserId, newHostUserId);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
             } catch (err) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: err.message }));

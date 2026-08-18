@@ -27,17 +27,42 @@ export function useMeeting() {
 
   const auth = useAuth();
 
-  // Stable CONNECTION identity: unique per browser tab/session
-  // Separate from user account ID to support multiple tabs from same account
-  const clientId = useMemo(() => {
-    let tabId = sessionStorage.getItem('securemeet_tab_id');
-    if (!tabId) {
-      // Use crypto.randomUUID() for collision-resistant unique ID
-      tabId = `tab_${crypto.randomUUID()}`;
-      sessionStorage.setItem('securemeet_tab_id', tabId);
+  // ═══════════════════════════════════════════════════════════════════════════
+  // IDENTITY MODEL (CRITICAL)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // userId = PERSISTENT user identity (Google OAuth ID or guest localStorage ID)
+  //          This MUST remain the same across browser refreshes
+  //          Used for: host identification, participant identity
+  //
+  // tabClientId = EPHEMERAL connection identity (session-scoped random UUID)
+  //               Regenerated on every page load/refresh
+  //               Used for: WebRTC peer connection tracking, SSE connection ID
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // PERSISTENT User ID (survives refresh)
+  const userId = useMemo(() => {
+    if (auth.identity?.id) {
+      // Authenticated: use Google OAuth sub (persistent across sessions)
+      return auth.identity.id;
     }
-    return tabId;
-  }, []);
+
+    // Guest: use localStorage-persisted UUID (persistent per browser)
+    let guestId = localStorage.getItem('securemeet_guest_id');
+    if (!guestId) {
+      guestId = `guest_${crypto.randomUUID()}`;
+      localStorage.setItem('securemeet_guest_id', guestId);
+    }
+    return guestId;
+  }, [auth.identity]);
+
+  // EPHEMERAL Tab/Connection ID (new on every page load)
+  const tabClientId = useMemo(() => {
+    // Always generate a NEW connection ID on page load
+    // Do NOT persist in sessionStorage (sessionStorage clears on refresh in some browsers)
+    const connId = `conn_${crypto.randomUUID()}`;
+    console.log('[Identity] Generated new connection ID:', connId, 'for userId:', userId);
+    return connId;
+  }, [userId]);
 
   const currentRoomId = useRef('');
   const roomSseRef = useRef(null);
@@ -53,15 +78,16 @@ export function useMeeting() {
   }, []);
 
   const mediaHook = useMedia(addLog);
-  const chatHook = useChat(currentRoomId, clientId, auth.identity);
-  const rtcHook = useWebRTC(currentRoomId, clientId, mediaHook.localStreamRef);
+  const chatHook = useChat(currentRoomId, tabClientId, auth.identity);
+  const rtcHook = useWebRTC(currentRoomId, tabClientId, mediaHook.localStreamRef);
   const telemetryHook = useTelemetry(session, addLog);
   const aiHook = useAI(session?.sessionId);
 
   // Server Authoritative Host Determination
+  // Host is determined by PERSISTENT userId, not ephemeral tabClientId
   const isHost = useMemo(() => {
-    return Boolean(serverHostId && serverHostId === clientId);
-  }, [serverHostId, clientId]);
+    return Boolean(serverHostId && serverHostId === userId);
+  }, [serverHostId, userId]);
 
   // Unified Authoritative Participant Model
   // Single source of truth across UI
@@ -70,9 +96,10 @@ export function useMeeting() {
     const localUser = auth.identity;
     const localRole = isHost ? 'host' : 'participant';
 
-    // 1. Local Participant
+    // 1. Local Participant (use tabClientId for WebRTC peer tracking)
     list.push({
-      id: clientId,
+      id: tabClientId,           // WebRTC peer ID (for connection tracking)
+      userId: userId,             // Persistent user identity
       name: localUser?.name || session?.participantName || (isHost ? 'Host' : 'Participant'),
       email: localUser?.email || '',
       picture: localUser?.picture || '',
@@ -80,20 +107,22 @@ export function useMeeting() {
       status: session ? 'CONNECTED' : (waitingForAdmission ? 'WAITING' : 'CONNECTING'),
       audioEnabled: Boolean(mediaHook.media.mic),
       videoEnabled: Boolean(mediaHook.media.cam),
-      screenSharing: Boolean(screenShareOwner === clientId),
+      screenSharing: Boolean(screenShareOwner === userId),
       stream: mediaHook.stream,
       isLocal: true
     });
 
     // 2. Remote Participants (from Server Authority)
     serverParticipants.forEach((sp) => {
-      if (sp.id === clientId) return; // Skip self
+      if (sp.userId === userId) return; // Skip self (match by userId)
 
-      const remoteStream = rtcHook.remoteStreams[sp.id] || null;
-      const isRemoteHost = Boolean(serverHostId && serverHostId === sp.id);
+      // Use connectionId for WebRTC stream lookup
+      const remoteStream = rtcHook.remoteStreams[sp.connectionId] || null;
+      const isRemoteHost = Boolean(serverHostId && serverHostId === sp.userId);
 
       list.push({
-        id: sp.id,
+        id: sp.connectionId,       // WebRTC peer ID
+        userId: sp.userId,          // Persistent user identity
         name: sp.name || 'Participant',
         email: sp.email || '',
         picture: sp.picture || '',
@@ -101,7 +130,7 @@ export function useMeeting() {
         status: sp.status || 'CONNECTED',
         audioEnabled: sp.audioEnabled !== false,
         videoEnabled: sp.videoEnabled !== false,
-        screenSharing: Boolean(screenShareOwner === sp.id),
+        screenSharing: Boolean(screenShareOwner === sp.userId),
         stream: remoteStream,
         isLocal: false
       });
@@ -109,7 +138,8 @@ export function useMeeting() {
 
     return list;
   }, [
-    clientId,
+    tabClientId,
+    userId,
     auth.identity,
     session,
     isHost,
@@ -157,6 +187,8 @@ export function useMeeting() {
     let data;
     try { data = JSON.parse(rawData); } catch { return; }
 
+    console.log('[SSE] Received event:', data.type, data);
+
     switch (data.type) {
       case 'room_snapshot': {
         setServerParticipants(data.participants || []);
@@ -164,6 +196,7 @@ export function useMeeting() {
         chatHookRef.current.setMessages(data.messages || []);
         if (data.hostId) setServerHostId(data.hostId);
         setScreenShareOwner(data.screenShareOwner || null);
+        console.log('[SSE] Room snapshot received. Host:', data.hostId, 'Participants:', data.participants?.length);
         break;
       }
 
@@ -174,11 +207,15 @@ export function useMeeting() {
         const np = data.participant;
         if (!np) break;
 
-        if (np.id !== clientId) {
+        console.log('[SSE] Participant joined:', np.userId, 'connectionId:', np.connectionId);
+
+        // Match by connectionId for WebRTC (not userId, as one user can have multiple tabs)
+        if (np.connectionId !== tabClientId) {
           addLogRef.current(`${np.name} joined the call.`, 'info');
 
           // EXISTING PEER INITIATES WebRTC OFFER TO NEW JOINER
-          rtcHookRef.current.createPeerConnection(np.id, true);
+          // Use connectionId for WebRTC peer tracking
+          rtcHookRef.current.createPeerConnection(np.connectionId, true);
         }
         break;
       }
@@ -190,22 +227,26 @@ export function useMeeting() {
         const rp = data.participant;
         if (!rp) break;
 
-        if (rp.id !== clientId) {
+        console.log('[SSE] Participant reconnected:', rp.userId, 'connectionId:', rp.connectionId);
+
+        if (rp.connectionId !== tabClientId) {
           addLogRef.current(`${rp.name} reconnected.`, 'info');
 
           // Re-establish WebRTC connection
-          rtcHookRef.current.createPeerConnection(rp.id, true);
+          rtcHookRef.current.createPeerConnection(rp.connectionId, true);
         }
         break;
       }
 
       case 'participant_left': {
-        const leftId = data.userId;
+        const leftConnectionId = data.connectionId;
         setServerParticipants(data.participants || []);
         if (data.hostId) setServerHostId(data.hostId);
 
-        rtcHookRef.current.closePeerConnection(leftId);
-        setScreenShareOwner((prev) => (prev === leftId ? null : prev));
+        console.log('[SSE] Participant left. connectionId:', leftConnectionId);
+
+        rtcHookRef.current.closePeerConnection(leftConnectionId);
+        setScreenShareOwner((prev) => (prev === data.userId ? null : prev));
         addLogRef.current('A participant left the call.', 'info');
         break;
       }
@@ -217,12 +258,16 @@ export function useMeeting() {
 
       case 'knock_request':
       case 'knock_queue_update': {
+        console.log('[SSE] Knock queue update:', data.knockQueue?.length, 'requests');
         setKnockRequests((data.knockQueue || []).filter((k) => k.status === 'WAITING' || k.status === 'pending'));
         break;
       }
 
       case 'knock_response': {
-        if (data.guestId !== clientId) break;
+        // Match by userId (persistent identity)
+        if (data.guestUserId !== userId) break;
+
+        console.log('[SSE] Knock response for me:', data.status);
 
         if (data.status === 'admitted') {
           // GUEST IS ADMITTED! Now complete join on server
@@ -231,7 +276,8 @@ export function useMeeting() {
           api.joinRoom({
             roomId: currentRoomId.current,
             user: {
-              id: clientId,
+              userId: userId,
+              connectionId: tabClientId,
               name: auth.identity?.name || pendingSessionRef.current?.participantName || 'Participant',
               email: auth.identity?.email || '',
               picture: auth.identity?.picture || ''
@@ -267,29 +313,41 @@ export function useMeeting() {
       }
 
       case 'screen_share_started': {
-        setScreenShareOwner(data.ownerId);
-        if (data.ownerId !== clientId) {
+        console.log('[SSE] Screen share started by userId:', data.ownerUserId);
+        setScreenShareOwner(data.ownerUserId);
+        if (data.ownerUserId !== userId) {
           addLogRef.current(`${data.ownerName || 'A participant'} started screen sharing.`, 'info');
         }
         break;
       }
 
       case 'screen_share_stopped': {
-        setScreenShareOwner((prev) => (prev === data.ownerId ? null : prev));
-        if (data.ownerId !== clientId) {
+        console.log('[SSE] Screen share stopped by userId:', data.ownerUserId);
+        setScreenShareOwner((prev) => (prev === data.ownerUserId ? null : prev));
+        if (data.ownerUserId !== userId) {
           addLogRef.current('Screen sharing ended.', 'info');
         }
         break;
       }
 
+      case 'meeting_ended': {
+        console.log('[SSE] Meeting ended by host');
+        addLogRef.current('The host has ended this meeting.', 'warn');
+        // Force leave
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
+        break;
+      }
+
       default: break;
     }
-  }, [clientId, auth.identity]);
+  }, [tabClientId, userId, auth.identity]);
 
   const onSSEMessageRef = useRef(onSSEMessage);
   useEffect(() => { onSSEMessageRef.current = onSSEMessage; }, [onSSEMessage]);
 
-  const connectRoomSSE = useCallback((roomId, userId) => {
+  const connectRoomSSE = useCallback((roomId, userIdParam, connectionIdParam) => {
     if (sseConnected.current) return;
 
     if (roomSseRef.current) {
@@ -297,14 +355,23 @@ export function useMeeting() {
       roomSseRef.current = null;
     }
 
+    // SSE connection identified by connectionId (ephemeral)
+    // But userId sent for host identification
     const sse = new EventSource(
-      `/api/room/events?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(userId)}`
+      `/api/room/events?roomId=${encodeURIComponent(roomId)}&userId=${encodeURIComponent(userIdParam)}&connectionId=${encodeURIComponent(connectionIdParam)}`
     );
     roomSseRef.current = sse;
     sseConnected.current = true;
 
+    console.log('[SSE] Connecting to room:', roomId, 'userId:', userIdParam, 'connectionId:', connectionIdParam);
+
     sse.onmessage = (event) => {
       onSSEMessageRef.current(event.data);
+    };
+
+    sse.onerror = (err) => {
+      console.error('[SSE] Connection error:', err);
+      // Will auto-reconnect
     };
   }, []);
 
@@ -326,12 +393,15 @@ export function useMeeting() {
       const fingerprint = await generateBrowserFingerprint().catch(() => '');
 
       const userPayload = {
-        id: clientId,
+        userId: userId,                    // PERSISTENT user identity
+        connectionId: tabClientId,         // EPHEMERAL connection identity
         name: auth.identity?.name || 'Participant',
         email: auth.identity?.email || '',
         picture: auth.identity?.picture || '',
         fingerprint
       };
+
+      console.log('[Join] Attempting to join room:', cleanCode, 'as userId:', userId, 'connectionId:', tabClientId);
 
       // Start local webcam & mic
       if (!mediaHook.localStreamRef.current) {
@@ -347,8 +417,10 @@ export function useMeeting() {
       };
       pendingSessionRef.current = pendingSession;
 
-      // Check saved host token in sessionStorage if creator
-      const savedHostToken = sessionStorage.getItem(`sec_host_${cleanCode}`);
+      // Check saved host token in localStorage (use userId as key for persistence)
+      const savedHostToken = localStorage.getItem(`sec_host_${cleanCode}_${userId}`);
+
+      console.log('[Join] Host token found:', !!savedHostToken);
 
       const res = await api.joinRoom({
         roomId: cleanCode,
@@ -356,9 +428,11 @@ export function useMeeting() {
         hostToken: savedHostToken
       });
 
+      console.log('[Join] Server response:', res.status, 'role:', res.role);
+
       if (res.status === 'waiting_for_host') {
         setWaitingForAdmission(true);
-        connectRoomSSE(cleanCode, clientId);
+        connectRoomSSE(cleanCode, userId, tabClientId);
         return;
       }
 
@@ -373,39 +447,45 @@ export function useMeeting() {
           ...pendingSession,
           role: res.role || 'participant'
         };
-        connectRoomSSE(cleanCode, clientId);
+        connectRoomSSE(cleanCode, userId, tabClientId);
         finalizeJoin(cleanCode, sess);
       }
     } catch (err) {
+      console.error('[Join] Error:', err);
       setError(err.message || 'Failed to join meeting.');
     } finally {
       setJoining(false);
     }
-  }, [clientId, auth.identity, mediaHook, connectRoomSSE, finalizeJoin]);
+  }, [userId, tabClientId, auth.identity, mediaHook, connectRoomSSE, finalizeJoin]);
 
   // ─── Create & Start Instant Meeting ──────────────────────────────────────
   const startInstantMeeting = useCallback(async () => {
     setError('');
     setJoining(true);
     try {
+      console.log('[Create] Creating instant meeting for userId:', userId);
+
       const created = await api.createMeeting({
         title: `${auth.identity?.name || 'User'}'s Meeting`,
         candidateName: auth.identity?.name || 'Participant',
-        creatorId: clientId
+        creatorUserId: userId  // Use persistent userId as creator
       });
 
       const { sessionId, hostToken } = created.session;
       if (hostToken) {
-        sessionStorage.setItem(`sec_host_${sessionId}`, hostToken);
+        // Store host token with userId in key for persistence across sessions
+        localStorage.setItem(`sec_host_${sessionId}_${userId}`, hostToken);
+        console.log('[Create] Host token saved for userId:', userId);
       }
 
       await joinByCode(sessionId);
     } catch (err) {
+      console.error('[Create] Error:', err);
       setError(err.message || 'Failed to create meeting.');
     } finally {
       setJoining(false);
     }
-  }, [auth.identity, clientId, joinByCode]);
+  }, [auth.identity, userId, joinByCode]);
 
   // ─── Create Meeting Link for Later ───────────────────────────────────────
   const createMeetingForLater = useCallback(async () => {
@@ -414,12 +494,12 @@ export function useMeeting() {
       const created = await api.createMeeting({
         title: `${auth.identity?.name || 'User'}'s Meeting`,
         candidateName: auth.identity?.name || 'Participant',
-        creatorId: clientId
+        creatorUserId: userId
       });
 
       const { sessionId, hostToken } = created.session;
       if (hostToken) {
-        sessionStorage.setItem(`sec_host_${sessionId}`, hostToken);
+        localStorage.setItem(`sec_host_${sessionId}_${userId}`, hostToken);
       }
 
       return sessionId;
@@ -427,18 +507,21 @@ export function useMeeting() {
       setError(err.message || 'Failed to create meeting.');
       return null;
     }
-  }, [auth.identity, clientId]);
+  }, [auth.identity, userId]);
 
   // ─── Host Admits / Denies Guest ──────────────────────────────────────────
-  const admitGuest = useCallback(async (guestId, action = 'admit') => {
+  const admitGuest = useCallback(async (guestUserId, action = 'admit') => {
     if (!isHost) {
       addLog('Only the host can admit participants.', 'warn');
       return;
     }
     try {
-      await api.admitGuest({ roomId: currentRoomId.current, guestId, action });
-      setKnockRequests((prev) => prev.filter((k) => k.id !== guestId));
-    } catch {}
+      console.log('[Admit] Host admitting/denying guestUserId:', guestUserId, 'action:', action);
+      await api.admitGuest({ roomId: currentRoomId.current, guestUserId, action });
+      setKnockRequests((prev) => prev.filter((k) => k.userId !== guestUserId));
+    } catch (err) {
+      console.error('[Admit] Error:', err);
+    }
   }, [isHost, addLog]);
 
   // ─── Screen Sharing Handling ─────────────────────────────────────────────
@@ -450,11 +533,11 @@ export function useMeeting() {
     if (!roomId) return;
 
     if (!wasSharing && isNowSharing) {
-      console.log('[ScreenShare] Starting screen share');
+      console.log('[ScreenShare] Starting screen share for userId:', userId);
 
-      // Notify server of screen share
+      // Notify server of screen share (use userId for screen share ownership)
       try {
-        await api.screenShare({ roomId, userId: clientId, isSharing: true });
+        await api.screenShare({ roomId, userId: userId, isSharing: true });
         console.log('[ScreenShare] Server notified of screen share start');
       } catch (err) {
         console.error('[ScreenShare] Failed to notify server:', err);
@@ -463,6 +546,7 @@ export function useMeeting() {
       // Replace video track across all WebRTC connections
       const screenTrack = mediaHook.screenStreamRef?.current?.getVideoTracks()[0];
       if (screenTrack) {
+        console.log('[ScreenShare] Screen track obtained:', screenTrack.id, 'readyState:', screenTrack.readyState);
         console.log('[ScreenShare] Replacing video track with screen track across all peers');
         await rtcHook.replaceVideoTrack(screenTrack);
         addLog('Screen sharing started.', 'info');
@@ -479,12 +563,12 @@ export function useMeeting() {
           mediaHook.media.share = false;
 
           try {
-            await api.screenShare({ roomId, userId: clientId, isSharing: false });
+            await api.screenShare({ roomId, userId: userId, isSharing: false });
             console.log('[ScreenShare] Server notified of screen share stop');
           } catch {}
 
           const camTrack = mediaHook.localStreamRef.current?.getVideoTracks()[0] || null;
-          console.log('[ScreenShare] Restoring camera track');
+          console.log('[ScreenShare] Restoring camera track:', camTrack ? camTrack.id : 'null');
           await rtcHook.replaceVideoTrack(camTrack);
           addLog('Screen sharing ended.', 'info');
         };
@@ -495,7 +579,7 @@ export function useMeeting() {
       // Stopped sharing
       console.log('[ScreenShare] Stopping screen share');
       try {
-        await api.screenShare({ roomId, userId: clientId, isSharing: false });
+        await api.screenShare({ roomId, userId: userId, isSharing: false });
         console.log('[ScreenShare] Server notified of screen share stop');
       } catch {}
 
@@ -504,14 +588,28 @@ export function useMeeting() {
       await rtcHook.replaceVideoTrack(camTrack);
       addLog('Screen sharing stopped.', 'info');
     }
-  }, [mediaHook, rtcHook, clientId, addLog]);
+  }, [mediaHook, rtcHook, userId, addLog]);
 
   // ─── Leave Meeting ───────────────────────────────────────────────────────
   const leaveMeeting = useCallback(async () => {
+    // Host has special leave behavior
+    if (isHost && participants.length > 1) {
+      // Host with other participants - show options modal
+      // This will be handled by the UI component
+      return { requiresHostAction: true };
+    }
+
+    // Regular participant or host alone
     if (!window.confirm('Leave this meeting?')) return;
 
+    console.log('[Leave] Leaving meeting. userId:', userId, 'connectionId:', tabClientId);
+
     if (currentRoomId.current) {
-      api.leaveRoom({ roomId: currentRoomId.current, userId: clientId }).catch(() => {});
+      api.leaveRoom({
+        roomId: currentRoomId.current,
+        userId: userId,
+        connectionId: tabClientId
+      }).catch(() => {});
     }
 
     rtcHook.closeAllConnections();
@@ -538,7 +636,45 @@ export function useMeeting() {
     if (window.history?.pushState) {
       window.history.pushState({}, '', '/');
     }
-  }, [clientId, rtcHook, mediaHook, chatHook]);
+  }, [isHost, participants.length, userId, tabClientId, rtcHook, mediaHook, chatHook]);
+
+  // ─── End Meeting (Host only) ─────────────────────────────────────────────
+  const endMeeting = useCallback(async () => {
+    if (!isHost) return;
+
+    if (!window.confirm('End this meeting for everyone?')) return;
+
+    console.log('[EndMeeting] Host ending meeting');
+
+    try {
+      await api.endMeeting({ roomId: currentRoomId.current, hostUserId: userId });
+    } catch (err) {
+      console.error('[EndMeeting] Error:', err);
+    }
+
+    // Then leave locally
+    await leaveMeeting();
+  }, [isHost, userId, leaveMeeting]);
+
+  // ─── Transfer Host ───────────────────────────────────────────────────────
+  const transferHost = useCallback(async (newHostUserId) => {
+    if (!isHost) return;
+
+    console.log('[TransferHost] Transferring host to userId:', newHostUserId);
+
+    try {
+      await api.transferHost({
+        roomId: currentRoomId.current,
+        currentHostUserId: userId,
+        newHostUserId
+      });
+
+      // Then leave
+      await leaveMeeting();
+    } catch (err) {
+      console.error('[TransferHost] Error:', err);
+    }
+  }, [isHost, userId, leaveMeeting]);
 
   // Auto-join from URL parameter ?room=xxx
   useEffect(() => {
@@ -589,16 +725,17 @@ export function useMeeting() {
 
         api.updateMediaState({
           roomId: currentRoomId.current,
-          userId: clientId,
+          userId: userId,
+          connectionId: tabClientId,
           ...updates
         }).catch(() => {});
       }
-    }, [mediaHook, clientId]),
+    }, [mediaHook, userId, tabClientId]),
     toggleShare,
 
     // Screen Share State
     screenShareOwner,
-    amSharing: Boolean(screenShareOwner === clientId),
+    amSharing: Boolean(screenShareOwner === userId),
 
     // WebRTC
     remoteStreams: rtcHook.remoteStreams,
@@ -635,6 +772,8 @@ export function useMeeting() {
     createMeetingForLater,
     joinByCode,
     leaveMeeting,
+    endMeeting,
+    transferHost,
     admitGuest
   };
 }

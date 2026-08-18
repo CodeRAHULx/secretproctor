@@ -57,6 +57,16 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }),
+  endMeeting: (body) => request('/api/room/end', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
+  transferHost: (body) => request('/api/room/transfer-host', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
 
   // AI Features: Translate & Summarize
   aiTranslate: (body) => request('/api/ai/translate', {
