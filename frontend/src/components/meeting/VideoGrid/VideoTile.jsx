@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Avatar } from '../../common/Avatar';
-import { Mic, MicOff, Star, AlertTriangle } from 'lucide-react';
+import { Mic, MicOff, Star, AlertTriangle, Pin, PinOff } from 'lucide-react';
 
 export function VideoTile({
   name,
@@ -13,8 +13,12 @@ export function VideoTile({
   isLocal = false,
   isHost = false,
   isScreenShare = false,
+  isPinned = false,
+  canPin = true,
+  onPin = null,
+  onClick = null,
   status = 'CONNECTED',
-  size = 'normal' // 'normal' | 'small'
+  size = 'normal' // 'normal' | 'small' | 'main'
 }) {
   const videoRef = useRef(null);
 
@@ -28,23 +32,35 @@ export function VideoTile({
   }, [stream]);
 
   // Show video only if: stream exists AND camera is not toggled off AND has a live video track
-  const hasLiveVideoTrack = stream &&
+  const hasLiveVideoTrack = Boolean(
+    stream &&
     stream.getVideoTracks().length > 0 &&
-    stream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled);
+    stream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled)
+  );
 
-  // For remote participants camOff comes from server-broadcast state.
-  // We also check actual track state as a fallback for when server update is missed.
+  // For remote participants camOff comes from server-broadcast state
   const showVideo = !camOff && hasLiveVideoTrack;
+
+  const handleClick = (e) => {
+    if (onClick) {
+      onClick(e);
+    } else if (onPin) {
+      onPin();
+    }
+  };
 
   return (
     <article
+      onClick={handleClick}
       className={[
         'video-tile',
         threatened ? 'threatened' : '',
         !showVideo ? 'cam-off' : '',
+        isPinned ? 'is-pinned' : '',
         `size-${size}`,
         isLocal ? 'is-local' : '',
-        isScreenShare ? 'is-screenshare' : ''
+        isScreenShare ? 'is-screenshare' : '',
+        (onClick || onPin) ? 'is-clickable' : ''
       ].filter(Boolean).join(' ')}
     >
       {/* Active Video Stream — always mounted so srcObject assignment works */}
@@ -68,7 +84,7 @@ export function VideoTile({
           <Avatar
             src={picture}
             name={name}
-            size={size === 'small' ? 'md' : 'xl'}
+            size={size === 'small' ? 'md' : (size === 'main' ? 'xl' : 'lg')}
             status={threatened ? 'threat' : (status === 'CONNECTED' ? 'online' : 'away')}
           />
           <div className="tile-avatar-label">
@@ -83,6 +99,21 @@ export function VideoTile({
           <span className="connecting-spinner" />
           <span>Connecting...</span>
         </div>
+      )}
+
+      {/* Pin / Unpin Overlay Action Button */}
+      {canPin && onPin && (
+        <button
+          className={`tile-pin-btn ${isPinned ? 'pinned' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPin();
+          }}
+          title={isPinned ? 'Unpin from main' : 'Pin to main stage'}
+          aria-label={isPinned ? 'Unpin participant' : 'Pin participant'}
+        >
+          {isPinned ? <PinOff size={16} strokeWidth={2} /> : <Pin size={16} strokeWidth={2} />}
+        </button>
       )}
 
       {/* Footer name + mic badge */}

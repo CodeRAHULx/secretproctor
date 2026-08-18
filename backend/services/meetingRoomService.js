@@ -360,21 +360,33 @@ class MeetingRoomService {
         const room = this._getRoom(roomId);
         if (!room) return { error: 'Room not found' };
 
-        // Signal.to is a connectionId
-        const targetConnection = room.connections.get(signal.to);
-        if (targetConnection) {
-            this._broadcastToUser(room.roomId, targetConnection.userId, {
-                type: 'webrtc_signal',
-                signal: {
-                    from: signal.from,
-                    to: signal.to,
-                    type: signal.type,
-                    data: signal.data
-                }
-            });
+        const id = this._cleanId(roomId);
+        const set = this.sseListeners.get(id);
+        if (!set) return { error: 'No active listeners' };
+
+        const targetUserId = room.connections.get(signal.to)?.userId;
+        const payload = `data: ${JSON.stringify({
+            type: 'webrtc_signal',
+            signal: {
+                from: signal.from,
+                to: signal.to,
+                type: signal.type,
+                data: signal.data
+            }
+        })}\n\n`;
+
+        let sent = 0;
+        for (const listener of set) {
+            // Target the specific connectionId or the userId owning that connection
+            if (listener.connectionId === signal.to || (targetUserId && listener.userId === targetUserId)) {
+                try {
+                    listener.res.write(payload);
+                    sent++;
+                } catch {}
+            }
         }
 
-        return { success: true };
+        return { success: true, sent };
     }
 
     /**

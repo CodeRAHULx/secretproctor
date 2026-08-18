@@ -80,7 +80,7 @@ export function useMeeting() {
 
   const mediaHook = useMedia(addLog);
   const chatHook = useChat(currentRoomId, tabClientId, auth.identity);
-  const rtcHook = useWebRTC(currentRoomId, tabClientId, mediaHook.localStreamRef);
+  const rtcHook = useWebRTC(currentRoomId, tabClientId, mediaHook.localStreamRef, mediaHook.screenStreamRef);
   const telemetryHook = useTelemetry(session, addLog, userId, tabClientId);
   const aiHook = useAI(session?.sessionId);
 
@@ -738,13 +738,13 @@ export function useMeeting() {
     screenStream: mediaHook.screenStream,
     screenStreamRef: mediaHook.screenStreamRef,
     toggleMedia: useCallback((kind) => {
-      mediaHook.toggleMedia(kind);
+      const newState = mediaHook.toggleMedia(kind);
 
       // Broadcast media state to server so remote participants see mute icons
       if (currentRoomId.current && (kind === 'mic' || kind === 'cam')) {
         const updates = kind === 'mic'
-          ? { audioEnabled: !mediaHook.media.mic }
-          : { videoEnabled: !mediaHook.media.cam };
+          ? { audioEnabled: Boolean(newState) }
+          : { videoEnabled: Boolean(newState) };
 
         api.updateMediaState({
           roomId: currentRoomId.current,

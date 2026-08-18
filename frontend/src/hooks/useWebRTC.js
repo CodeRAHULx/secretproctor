@@ -29,7 +29,7 @@ const ICE_SERVERS = {
   ]
 };
 
-export function useWebRTC(currentRoomId, clientId, localStreamRef) {
+export function useWebRTC(currentRoomId, clientId, localStreamRef, screenStreamRef) {
   const [remoteStreams, setRemoteStreams] = useState({});
   const peerConnections = useRef(new Map()); // peerId -> RTCPeerConnection
   const candidateQueues = useRef(new Map()); // peerId -> RTCIceCandidate[]
@@ -72,19 +72,35 @@ export function useWebRTC(currentRoomId, clientId, localStreamRef) {
     peerConnections.current.set(remotePeerId, pc);
     candidateQueues.current.set(remotePeerId, []);
 
-    // 1. Add all active local media tracks (Audio + Video)
-    if (localStreamRef.current) {
-      const tracks = localStreamRef.current.getTracks();
-      console.log('[WebRTC] Adding', tracks.length, 'local tracks to peer connection:', tracks.map(t => `${t.kind} (${t.label})`).join(', '));
-      tracks.forEach((track) => {
+    // 1. Add Audio Track (from local mic)
+    if (localStreamRef?.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
         try {
-          pc.addTrack(track, localStreamRef.current);
+          pc.addTrack(audioTrack, localStreamRef.current);
+          console.log('[WebRTC] Added audio track to peer', remotePeerId);
         } catch (err) {
-          console.error('[WebRTC] Failed to add track:', err);
+          console.error('[WebRTC] Failed to add audio track:', err);
         }
-      });
+      }
+    }
+
+    // 2. Add Video Track: If screen sharing is active, send screen track; otherwise send camera track
+    const screenTrack = screenStreamRef?.current?.getVideoTracks()[0];
+    const isScreenActive = Boolean(screenTrack && screenTrack.readyState === 'live');
+    const cameraTrack = localStreamRef?.current?.getVideoTracks()[0];
+    const videoTrackToSend = isScreenActive ? screenTrack : cameraTrack;
+    const streamContext = isScreenActive ? screenStreamRef.current : localStreamRef?.current;
+
+    if (videoTrackToSend && streamContext) {
+      try {
+        pc.addTrack(videoTrackToSend, streamContext);
+        console.log('[WebRTC] Added video track (' + (isScreenActive ? 'Screen' : 'Camera') + ') to peer', remotePeerId);
+      } catch (err) {
+        console.error('[WebRTC] Failed to add video track:', err);
+      }
     } else {
-      console.warn('[WebRTC] No local stream available to add tracks');
+      console.warn('[WebRTC] No video track available to add for peer', remotePeerId);
     }
 
     // 2. Handle ICE Candidates

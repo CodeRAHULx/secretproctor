@@ -34,13 +34,14 @@ export function useMedia(onLog = () => {}) {
   }, []);
 
   const toggleMedia = useCallback((kind) => {
-    if (!localStreamRef.current) return;
+    if (!localStreamRef.current) return false;
     const active = !media[kind];
     setMedia((old) => ({ ...old, [kind]: active }));
     (kind === 'mic'
       ? localStreamRef.current.getAudioTracks()
       : localStreamRef.current.getVideoTracks()
     ).forEach((t) => { t.enabled = active; });
+    return active;
   }, [media]);
 
   const toggleShare = useCallback(async () => {
