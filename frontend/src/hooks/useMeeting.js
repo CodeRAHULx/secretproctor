@@ -341,6 +341,14 @@ export function useMeeting() {
         break;
       }
 
+      case 'telemetry_report': {
+        if (data.hasThreat && data.userId !== userId) {
+          const detail = data.threats?.[0]?.title || data.threats?.[0]?.path || 'Stealth / Recording Process';
+          addLogRef.current(`🚨 Integrity Alert: Threat detected for participant (${detail})`, 'alert');
+        }
+        break;
+      }
+
       default: break;
     }
   }, [tabClientId, userId, auth.identity]);

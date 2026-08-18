@@ -142,6 +142,9 @@ function handleApiRoutes(req, res) {
         if (pathname === '/api/telemetry/stream') {
             telemetryController.streamTelemetry(req, res); return true;
         }
+        if (pathname === '/api/telemetry/report' && req.method === 'POST') {
+            telemetryController.reportTelemetry(req, res); return true;
+        }
         if (pathname === '/api/status' && req.method === 'GET') {
             telemetryController.getStatus(req, res); return true;
         }

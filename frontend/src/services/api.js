@@ -84,6 +84,11 @@ export const api = {
   }),
 
   // Proctoring & Forensics
+  reportTelemetry: (body) => request('/api/telemetry/report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }),
   saveAudit: (body) => request('/api/audit/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

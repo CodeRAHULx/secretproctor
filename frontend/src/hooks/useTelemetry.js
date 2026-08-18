@@ -49,19 +49,37 @@ export function useTelemetry(session, addLog) {
     };
   }, [session, addLog]);
 
-  // Tab focus & paste protection
+  // Tab focus & paste protection + report to server
   useEffect(() => {
     if (!session) return;
     const focus = () => {
       const lost = document.hidden;
       setChecks((old) => old.map((check, i) => (i === 1 ? [check[0], lost ? 'Lost' : 'Focused', lost ? 'fail' : 'ok'] : check)));
-      if (lost) addLog?.('Tab focus lost.', 'warn');
+      if (lost) {
+        addLog?.('Tab focus lost (switched app or tab).', 'warn');
+        api.reportTelemetry({
+          roomId: session.sessionId,
+          userId: session.userId,
+          connectionId: session.connectionId,
+          source: 'browser-watchdog',
+          threats: [{ title: 'Tab Focus Lost / Window Switched', pid: 0, path: 'Browser Event' }],
+          checks: [['Tab focus', 'Lost', 'fail']]
+        }).catch(() => {});
+      }
     };
     const paste = (event) => {
       const text = event.clipboardData?.getData('text') || '';
       if (text.length > 30) {
         setChecks((old) => old.map((check, i) => (i === 2 ? [check[0], 'Bulk paste', 'fail'] : check)));
         addLog?.(`Large paste detected (${text.length} characters).`, 'warn');
+        api.reportTelemetry({
+          roomId: session.sessionId,
+          userId: session.userId,
+          connectionId: session.connectionId,
+          source: 'browser-watchdog',
+          threats: [{ title: `Suspicious Bulk Paste (${text.length} chars)`, pid: 0, path: 'Clipboard Event' }],
+          checks: [['Clipboard', 'Bulk paste', 'fail']]
+        }).catch(() => {});
       }
     };
     document.addEventListener('visibilitychange', focus);
