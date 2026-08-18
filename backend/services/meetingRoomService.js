@@ -68,6 +68,19 @@ class MeetingRoomService {
         console.log('[MeetingRoom] Current room.hostUserId:', room.hostUserId);
 
         // ═══════════════════════════════════════════════════════════════════════
+        // MULTI-TAB DETECTION: Block if userId already has active connection
+        // ═══════════════════════════════════════════════════════════════════════
+        const existingParticipant = room.participants.get(userId);
+        if (existingParticipant && existingParticipant.connectionId !== connectionId) {
+            console.warn('[MeetingRoom] Multi-tab detected - userId already has active connection:', existingParticipant.connectionId);
+            return {
+                error: 'multi_tab_detected',
+                message: 'This account is already connected to this meeting in another tab or device. Please close the other session first.',
+                existingConnectionId: existingParticipant.connectionId
+            };
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
         // HOST IDENTIFICATION (PERSISTENT)
         // ═══════════════════════════════════════════════════════════════════════
         // Host is identified by PERSISTENT userId, NOT ephemeral connectionId

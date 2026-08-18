@@ -28,4 +28,17 @@ function requireAuth(req, res, next) {
     return true;
 }
 
-module.exports = { authMiddleware, requireAuth, parseCookies };
+/**
+ * Verify that authenticated user matches claimed userId in request
+ * For OAuth users only (guests use hostToken verification)
+ */
+function verifyUserIdMatch(req, claimedUserId) {
+    // If authenticated via OAuth, verify userId matches
+    if (req.user && req.user.id !== claimedUserId) {
+        console.warn('[Auth] User ID mismatch - authenticated:', req.user.id, 'claimed:', claimedUserId);
+        return false;
+    }
+    return true;
+}
+
+module.exports = { authMiddleware, requireAuth, parseCookies, verifyUserIdMatch };

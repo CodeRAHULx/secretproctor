@@ -441,6 +441,18 @@ export function useMeeting() {
         return;
       }
 
+      if (res.error === 'multi_tab_detected') {
+        setError('This meeting is already open in another tab or device. Please close the other session first.');
+        setJoining(false);
+        return;
+      }
+
+      if (res.error) {
+        setError(res.message || res.error);
+        setJoining(false);
+        return;
+      }
+
       if (res.status === 'joined') {
         if (res.hostId) setServerHostId(res.hostId);
         const sess = {

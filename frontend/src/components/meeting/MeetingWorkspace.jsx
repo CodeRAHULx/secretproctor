@@ -85,7 +85,7 @@ export function MeetingWorkspace({ meeting }) {
       {meeting.isHost && meeting.knockRequests.length > 0 && (
         <div className="admission-toast-container">
           {meeting.knockRequests.map((guest) => (
-            <div className="admission-toast" key={guest.id}>
+            <div className="admission-toast" key={guest.userId}>
               <div className="guest-info">
                 {guest.picture ? (
                   <img src={guest.picture} alt={guest.name} className="guest-img" />
@@ -101,14 +101,14 @@ export function MeetingWorkspace({ meeting }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => meeting.admitGuest(guest.id, 'deny')}
+                  onClick={() => meeting.admitGuest(guest.userId, 'deny')}
                 >
                   Deny
                 </Button>
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => meeting.admitGuest(guest.id, 'admit')}
+                  onClick={() => meeting.admitGuest(guest.userId, 'admit')}
                 >
                   Admit
                 </Button>

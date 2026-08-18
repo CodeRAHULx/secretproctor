@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const sessionManager = require('../services/sessionManager');
 const googleAuthService = require('../services/googleAuthService');
 const meetingRoomService = require('../services/meetingRoomService');
+const { authMiddleware, verifyUserIdMatch } = require('../middleware/auth.middleware');
 
 const parseCookies = header => Object.fromEntries((header || '').split(';').filter(Boolean).map(part => {
     const index = part.indexOf('=');
@@ -108,10 +109,27 @@ class SessionController {
     }
 
     admitGuest(req, res) {
+        authMiddleware(req, res);
         readBody(req).then(body => {
             try {
                 const { roomId, guestUserId, action } = JSON.parse(body || '{}');
                 console.log('[SessionController] Admit guest - guestUserId:', guestUserId, 'action:', action);
+
+                // Verify the caller is actually the host
+                const room = meetingRoomService._getRoom(roomId);
+                if (!room) {
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Room not found' }));
+                    return;
+                }
+
+                // For OAuth users, verify they are the host
+                if (req.user && req.user.id !== room.hostUserId) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Only the host can admit participants' }));
+                    return;
+                }
+
                 const result = meetingRoomService.admitGuest(roomId, guestUserId, action);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
@@ -194,9 +212,18 @@ class SessionController {
     }
 
     endMeeting(req, res) {
+        authMiddleware(req, res);
         readBody(req).then(body => {
             try {
                 const { roomId, hostUserId } = JSON.parse(body || '{}');
+
+                // Verify the caller is the actual host
+                if (req.user && !verifyUserIdMatch(req, hostUserId)) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Authorization failed: You are not the host' }));
+                    return;
+                }
+
                 const result = meetingRoomService.endMeeting(roomId, hostUserId);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));
@@ -208,9 +235,18 @@ class SessionController {
     }
 
     transferHost(req, res) {
+        authMiddleware(req, res);
         readBody(req).then(body => {
             try {
                 const { roomId, currentHostUserId, newHostUserId } = JSON.parse(body || '{}');
+
+                // Verify the caller is the current host
+                if (req.user && !verifyUserIdMatch(req, currentHostUserId)) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Authorization failed: You are not the current host' }));
+                    return;
+                }
+
                 const result = meetingRoomService.transferHost(roomId, currentHostUserId, newHostUserId);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(result));

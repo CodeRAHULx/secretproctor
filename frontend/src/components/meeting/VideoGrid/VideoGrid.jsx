@@ -20,13 +20,13 @@ export function VideoGrid({ meeting, onCopyLink, linkCopied }) {
 
   // Screen share view active when presenter exists
   if (screenShareOwner) {
-    const sharerParticipant = participants.find((p) => p.id === screenShareOwner);
+    const sharerParticipant = participants.find((p) => p.userId === screenShareOwner);
     const presenterName = amSharing ? 'You' : (sharerParticipant?.name || 'Presenter');
 
     // Get the actual screen share stream - DO NOT fall back to camera stream
     const shareStream = amSharing
       ? meeting.screenStream
-      : meeting.remoteStreams?.[screenShareOwner];
+      : (sharerParticipant?.stream || null);
 
     return (
       <ScreenShareView
