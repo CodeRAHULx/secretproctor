@@ -81,7 +81,7 @@ export function useMeeting() {
   const mediaHook = useMedia(addLog);
   const chatHook = useChat(currentRoomId, tabClientId, auth.identity);
   const rtcHook = useWebRTC(currentRoomId, tabClientId, mediaHook.localStreamRef);
-  const telemetryHook = useTelemetry(session, addLog);
+  const telemetryHook = useTelemetry(session, addLog, userId, tabClientId);
   const aiHook = useAI(session?.sessionId);
 
   // Server Authoritative Host Determination

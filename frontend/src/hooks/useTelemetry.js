@@ -8,7 +8,7 @@ const initialChecks = [
   ['Clipboard', 'Normal', 'ok']
 ];
 
-export function useTelemetry(session, addLog) {
+export function useTelemetry(session, addLog, userId, connectionId) {
   const [threats, setThreats] = useState([]);
   const [checks, setChecks] = useState(initialChecks);
   const [logs, setLogs] = useState([]);
@@ -59,8 +59,8 @@ export function useTelemetry(session, addLog) {
         addLog?.('Tab focus lost (switched app or tab).', 'warn');
         api.reportTelemetry({
           roomId: session.sessionId,
-          userId: session.userId,
-          connectionId: session.connectionId,
+          userId,
+          connectionId,
           source: 'browser-watchdog',
           threats: [{ title: 'Tab Focus Lost / Window Switched', pid: 0, path: 'Browser Event' }],
           checks: [['Tab focus', 'Lost', 'fail']]
@@ -74,8 +74,8 @@ export function useTelemetry(session, addLog) {
         addLog?.(`Large paste detected (${text.length} characters).`, 'warn');
         api.reportTelemetry({
           roomId: session.sessionId,
-          userId: session.userId,
-          connectionId: session.connectionId,
+          userId,
+          connectionId,
           source: 'browser-watchdog',
           threats: [{ title: `Suspicious Bulk Paste (${text.length} chars)`, pid: 0, path: 'Clipboard Event' }],
           checks: [['Clipboard', 'Bulk paste', 'fail']]
