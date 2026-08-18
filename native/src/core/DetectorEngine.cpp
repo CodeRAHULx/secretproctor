@@ -5,7 +5,7 @@
 #include "../../include/detectors/DebuggerDetector.h"
 #include "../../include/detectors/KeystrokeDetector.h"
 #include "../../include/detectors/DualTabDetector.h"
-#include <windows.h>
+#include "../../include/platform/Platform.h"
 
 DetectorEngine::DetectorEngine() {
 }
@@ -14,9 +14,13 @@ DetectorEngine::~DetectorEngine() {
 }
 
 void DetectorEngine::AntiDebugSelfCheck() {
-    if (IsDebuggerPresent()) {
-        // Exit process immediately if patched/hooked
+    if (DebuggerDetector::IsDebuggerAttached()) {
+        // Exit process immediately if debugger detected
+#ifdef PLATFORM_WINDOWS
         ExitProcess(0xC0000005);
+#else
+        _exit(1);
+#endif
     }
 }
 

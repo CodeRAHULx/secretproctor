@@ -1,72 +1,53 @@
 #include "../../include/detectors/DisplayAffinityDetector.h"
-#include <windows.h>
-#include <psapi.h>
+#include "../../include/platform/WindowScanner.h"
+#include "../../include/platform/ProcessScanner.h"
+#include "../../include/platform/Platform.h"
 #include <vector>
 #include <string>
 
-#ifndef WDA_EXCLUDEFROMCAPTURE
-#define WDA_EXCLUDEFROMCAPTURE 0x00000011
-#endif
-
-#ifndef WDA_MONITOR
-#define WDA_MONITOR 0x00000001
-#endif
-
-struct EnumContext {
-    std::vector<ThreatRecord>* threats;
-    DWORD currentProcessId;
-};
-
-static std::string GetProcessPath(HANDLE hProcess) {
-    char path[MAX_PATH] = { 0 };
-    if (GetModuleFileNameExA(hProcess, NULL, path, MAX_PATH)) {
-        return std::string(path);
-    }
-    return "";
-}
-
-static BOOL CALLBACK EnumWindowProc(HWND hwnd, LPARAM lParam) {
-    EnumContext* context = reinterpret_cast<EnumContext*>(lParam);
-    if (!hwnd || !IsWindow(hwnd)) return TRUE;
-
-    DWORD affinity = 0;
-    if (GetWindowDisplayAffinity(hwnd, &affinity)) {
-        if (affinity == WDA_EXCLUDEFROMCAPTURE || affinity == WDA_MONITOR) {
-            DWORD pid = 0;
-            GetWindowThreadProcessId(hwnd, &pid);
-
-            // Skip current scanner process
-            if (pid == context->currentProcessId || pid <= 4) return TRUE;
-
-            char title[512] = { 0 };
-            GetWindowTextA(hwnd, title, sizeof(title));
-
-            std::string procPath = "";
-            HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, FALSE, pid);
-            if (hProcess) {
-                procPath = GetProcessPath(hProcess);
-                CloseHandle(hProcess);
-            }
-
-            ThreatRecord rec;
-            rec.pid = pid;
-            rec.hwnd = hwnd;
-            rec.title = (title[0] != '\0') ? title : "(Untitled Stealth Window)";
-            rec.path = procPath;
-            rec.affinity = affinity;
-            rec.type = "WDA_EXCLUDEFROMCAPTURE_STEALTH";
-            rec.severity = "CRITICAL";
-            rec.details = "Window configured with Win32 Display Affinity to evade screen capture/proctoring.";
-
-            context->threats->push_back(rec);
-        }
-    }
-    return TRUE;
-}
-
 std::vector<ThreatRecord> DisplayAffinityDetector::Scan() {
     std::vector<ThreatRecord> threats;
-    EnumContext ctx = { &threats, GetCurrentProcessId() };
-    EnumWindows(EnumWindowProc, reinterpret_cast<LPARAM>(&ctx));
+
+    if (!WindowScanner::SupportsAffinityDetection()) {
+        // Platform doesn't support display affinity detection
+        return threats;
+    }
+
+    auto suspiciousWindows = WindowScanner::GetWindowsWithDisplayAffinity();
+
+    for (const auto& win : suspiciousWindows) {
+        ThreatRecord rec;
+        rec.pid = win.pid;
+        rec.hwnd = win.handle;
+        rec.title = win.title.empty() ? "(Untitled Stealth Window)" : win.title;
+        rec.affinity = win.affinity;
+        rec.type = "WDA_EXCLUDEFROMCAPTURE_STEALTH";
+        rec.severity = "CRITICAL";
+
+        // Get process path
+        rec.path = ProcessScanner::GetProcessPath(win.pid);
+        if (rec.path.empty()) {
+            rec.path = win.className;
+        }
+
+        // Platform-specific details
+        Platform::OS os = Platform::GetCurrentOS();
+        switch (os) {
+            case Platform::OS::Windows:
+                rec.details = "Window configured with Win32 Display Affinity (WDA_EXCLUDEFROMCAPTURE) to evade screen capture/proctoring.";
+                break;
+            case Platform::OS::MacOS:
+                rec.details = "Window configured with kCGWindowSharingNone to evade screen capture/proctoring.";
+                break;
+            case Platform::OS::Linux:
+                rec.details = "Suspicious overlay window detected that may be evading screen capture (X11 topmost window).";
+                break;
+            default:
+                rec.details = "Suspicious window configuration detected.";
+        }
+
+        threats.push_back(rec);
+    }
+
     return threats;
 }

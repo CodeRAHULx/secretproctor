@@ -1,5 +1,13 @@
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_20", "gcc", "gnumake", "cmake", "xorg.libX11", "xorg.libX11.dev", "pkg-config"]
+
+[phases.build]
+cmds = [
+    "echo 'Building native cross-platform detector...'",
+    "cd native && chmod +x build.sh",
+    "cd native && mkdir -p build && cd build && cmake .. && cmake --build . --config Release || echo 'Native build skipped, will use Node.js fallback'",
+    "ls -la native/bin/ || echo 'No native binary'"
+]
 
 [phases.install]
 cmds = ["npm install --prefix backend"]

@@ -20,15 +20,24 @@ class NativeWatchdogService {
     }
 
     determineDetector() {
-        // Check for Node.js cross-platform detector (works on all platforms)
-        const crossPlatformDetector = path.join(__dirname, '../../detector/detector.js');
-        if (fs.existsSync(crossPlatformDetector)) {
-            return 'cross-platform';
+        // Check for native C++ detector (all platforms)
+        const nativeDetectorPaths = {
+            win32: path.join(__dirname, '../../native/bin/display_affinity_detector.exe'),
+            linux: path.join(__dirname, '../../native/bin/display_affinity_detector'),
+            darwin: path.join(__dirname, '../../native/bin/display_affinity_detector')
+        };
+
+        const nativePath = nativeDetectorPaths[this.platform];
+        if (nativePath && fs.existsSync(nativePath)) {
+            this.detectorPath = nativePath;
+            return 'native-cross-platform';
         }
 
-        // Check for native C++ detector (Windows only)
-        if (this.platform === 'win32' && fs.existsSync(config.PATHS.DETECTOR_EXE)) {
-            return 'native-windows';
+        // Fallback: Check for Node.js detector (limited features)
+        const nodeDetector = path.join(__dirname, '../../detector/detector.js');
+        if (fs.existsSync(nodeDetector)) {
+            this.detectorPath = nodeDetector;
+            return 'node-fallback';
         }
 
         return 'none';
@@ -37,13 +46,22 @@ class NativeWatchdogService {
     start(intervalMs = config.SCAN_INTERVAL_MS) {
         if (!this.detectorAvailable) {
             console.log('[NativeWatchdogService] No detector available. Proctoring features disabled.');
-            console.log('[NativeWatchdogService] To enable proctoring:');
-            console.log('  1. Install detector dependencies: cd detector && npm install');
-            console.log('  2. Restart the server');
+            if (this.detectorType === 'none') {
+                console.log('[NativeWatchdogService] To enable proctoring:');
+                console.log('  1. Build native detector: cd native && ./build.sh (Linux/Mac) or build.bat (Windows)');
+                console.log('  2. OR install Node detector: cd detector && npm install');
+                console.log('  3. Restart the server');
+            }
             return;
         }
 
-        console.log(`[NativeWatchdogService] Starting ${this.detectorType} detector...`);
+        const detectorName = this.detectorType === 'native-cross-platform' ?
+            `native C++ detector (${this.platform})` :
+            'Node.js fallback detector';
+
+        console.log(`[NativeWatchdogService] Starting ${detectorName}...`);
+        console.log(`[NativeWatchdogService] Detector path: ${this.detectorPath}`);
+
         this.scan();
         setInterval(() => this.scan(), intervalMs);
     }
@@ -87,14 +105,14 @@ class NativeWatchdogService {
 
     getDetectorCommand() {
         switch (this.detectorType) {
-            case 'cross-platform':
-                return `node "${path.join(__dirname, '../../detector/detector.js')}" --json`;
+            case 'native-cross-platform':
+                return `"${this.detectorPath}"`;
 
-            case 'native-windows':
-                return `"${config.PATHS.DETECTOR_EXE}" --json`;
+            case 'node-fallback':
+                return `node "${this.detectorPath}" --json`;
 
             default:
-                return 'echo {"threatCount":0,"threats":[]}';
+                return 'echo {"hasThreat":false,"threatCount":0,"threats":[]}';
         }
     }
 
