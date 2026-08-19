@@ -2,94 +2,210 @@
 #include "../../include/platform/Platform.h"
 
 #ifdef PLATFORM_LINUX
+
 #include <dirent.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
-#include <fstream>
-#include <sstream>
+
 #include <algorithm>
-#include <cstring>
+#include <cctype>
+#include <fstream>
+#include <string>
+#include <vector>
 
-std::vector<ProcessInfo> ProcessScanner::GetAllProcesses() {
+namespace {
+
+std::string ToLower(std::string value)
+{
+    std::transform(
+        value.begin(),
+        value.end(),
+        value.begin(),
+        [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        }
+    );
+
+    return value;
+}
+
+std::string GetFileName(const std::string& path)
+{
+    const std::size_t pos = path.find_last_of('/');
+
+    if (pos == std::string::npos)
+        return path;
+
+    return path.substr(pos + 1);
+}
+
+std::string NormalizeProcessName(const std::string& name)
+{
+    std::string normalized = ToLower(GetFileName(name));
+
+    // Linux normally doesn't use .exe, but accepting it here
+    // keeps matching behavior consistent across platforms.
+    if (normalized.size() >= 4 &&
+        normalized.compare(
+            normalized.size() - 4,
+            4,
+            ".exe"
+        ) == 0)
+    {
+        normalized.erase(normalized.size() - 4);
+    }
+
+    return normalized;
+}
+
+bool IsNumeric(const char* value)
+{
+    if (value == nullptr || *value == '\0')
+        return false;
+
+    for (const char* p = value; *p != '\0'; ++p)
+    {
+        if (!std::isdigit(
+                static_cast<unsigned char>(*p)))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+} // namespace
+
+
+std::vector<ProcessInfo> ProcessScanner::GetAllProcesses()
+{
     std::vector<ProcessInfo> processes;
+
     DIR* dir = opendir("/proc");
-    if (!dir) return processes;
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        // Check if directory name is a number (PID)
-        if (entry->d_type != DT_DIR) continue;
+    if (!dir)
+        return processes;
 
-        std::string name = entry->d_name;
-        if (name.empty() || !std::isdigit(name[0])) continue;
+    struct dirent* entry = nullptr;
 
-        unsigned long pid = std::stoul(name);
+    while ((entry = readdir(dir)) != nullptr)
+    {
+        if (!IsNumeric(entry->d_name))
+            continue;
+
+        const std::string pidString = entry->d_name;
+
+        unsigned long pid = 0;
+
+        try
+        {
+            pid = std::stoul(pidString);
+        }
+        catch (...)
+        {
+            continue;
+        }
+
+        if (pid == 0)
+            continue;
 
         ProcessInfo info;
         info.pid = pid;
 
-        // Read process name from /proc/[pid]/comm
-        std::string commPath = "/proc/" + name + "/comm";
+        // /proc/<pid>/comm contains the process name.
+        const std::string commPath =
+            "/proc/" + pidString + "/comm";
+
         std::ifstream commFile(commPath);
-        if (commFile.is_open()) {
+
+        if (commFile.is_open())
+        {
             std::getline(commFile, info.name);
-            // Remove trailing newline
-            if (!info.name.empty() && info.name.back() == '\n') {
-                info.name.pop_back();
-            }
-            commFile.close();
         }
 
-        // Read full path from /proc/[pid]/exe
         info.path = GetProcessPath(pid);
 
-        if (!info.name.empty()) {
-            processes.push_back(info);
+        if (!info.name.empty())
+        {
+            processes.push_back(std::move(info));
         }
     }
 
     closedir(dir);
+
     return processes;
 }
 
-bool ProcessScanner::FindProcess(const std::string& targetName, ProcessInfo& found) {
-    auto processes = GetAllProcesses();
-    std::string targetLower = targetName;
-    std::transform(targetLower.begin(), targetLower.end(), targetLower.begin(), ::tolower);
 
-    for (const auto& proc : processes) {
-        std::string nameLower = proc.name;
-        std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+bool ProcessScanner::FindProcess(
+    const std::string& targetName,
+    ProcessInfo& found)
+{
+    const std::string target =
+        NormalizeProcessName(targetName);
 
-        std::string pathLower = proc.path;
-        std::transform(pathLower.begin(), pathLower.end(), pathLower.begin(), ::tolower);
+    if (target.empty())
+        return false;
 
-        if (nameLower.find(targetLower) != std::string::npos ||
-            pathLower.find(targetLower) != std::string::npos) {
-            found = proc;
+    const auto processes = GetAllProcesses();
+
+    for (const auto& process : processes)
+    {
+        // Prefer the process name.
+        if (NormalizeProcessName(process.name) == target)
+        {
+            found = process;
+            return true;
+        }
+
+        // If the process name isn't useful, also check the
+        // executable filename from its path.
+        if (!process.path.empty() &&
+            NormalizeProcessName(process.path) == target)
+        {
+            found = process;
             return true;
         }
     }
+
     return false;
 }
 
-bool ProcessScanner::TerminateProcess(unsigned long pid) {
-    if (pid <= 1) return false;
-    return kill(pid, SIGKILL) == 0;
+
+bool ProcessScanner::TerminateProcess(unsigned long pid)
+{
+    // Never allow termination of PID 0/1.
+    if (pid <= 1)
+        return false;
+
+    return kill(
+        static_cast<pid_t>(pid),
+        SIGKILL
+    ) == 0;
 }
 
-std::string ProcessScanner::GetProcessPath(unsigned long pid) {
-    std::string exePath = "/proc/" + std::to_string(pid) + "/exe";
-    char path[PATH_MAX];
-    ssize_t len = readlink(exePath.c_str(), path, sizeof(path) - 1);
 
-    if (len != -1) {
-        path[len] = '\0';
-        return std::string(path);
-    }
+std::string ProcessScanner::GetProcessPath(unsigned long pid)
+{
+    const std::string exePath =
+        "/proc/" + std::to_string(pid) + "/exe";
 
-    return "";
+    char path[4096] = {};
+
+    const ssize_t length = readlink(
+        exePath.c_str(),
+        path,
+        sizeof(path) - 1
+    );
+
+    if (length <= 0)
+        return "";
+
+    path[length] = '\0';
+
+    return std::string(path);
 }
 
 #endif

@@ -2,81 +2,193 @@
 #include "../../include/platform/Platform.h"
 
 #ifdef PLATFORM_MACOS
+
 #include <libproc.h>
 #include <sys/proc_info.h>
 #include <sys/sysctl.h>
 #include <signal.h>
-#include <vector>
-#include <algorithm>
-#include <cstring>
 
-std::vector<ProcessInfo> ProcessScanner::GetAllProcesses() {
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <vector>
+
+namespace {
+
+std::string ToLower(std::string value)
+{
+    std::transform(
+        value.begin(),
+        value.end(),
+        value.begin(),
+        [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        }
+    );
+
+    return value;
+}
+
+std::string GetFileName(const std::string& path)
+{
+    const std::size_t pos = path.find_last_of('/');
+
+    if (pos == std::string::npos)
+        return path;
+
+    return path.substr(pos + 1);
+}
+
+std::string NormalizeProcessName(const std::string& name)
+{
+    std::string normalized =
+        ToLower(GetFileName(name));
+
+    if (normalized.size() >= 4 &&
+        normalized.compare(
+            normalized.size() - 4,
+            4,
+            ".exe"
+        ) == 0)
+    {
+        normalized.erase(normalized.size() - 4);
+    }
+
+    return normalized;
+}
+
+} // namespace
+
+
+std::vector<ProcessInfo> ProcessScanner::GetAllProcesses()
+{
     std::vector<ProcessInfo> processes;
 
-    // Get number of processes
-    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0};
+    int mib[4] = {
+        CTL_KERN,
+        KERN_PROC,
+        KERN_PROC_ALL,
+        0
+    };
+
     size_t size = 0;
 
-    if (sysctl(mib, 4, NULL, &size, NULL, 0) < 0) {
+    if (sysctl(
+            mib,
+            4,
+            nullptr,
+            &size,
+            nullptr,
+            0) < 0)
+    {
         return processes;
     }
 
-    size_t numProcs = size / sizeof(struct kinfo_proc);
-    std::vector<struct kinfo_proc> procList(numProcs);
+    if (size == 0)
+        return processes;
 
-    if (sysctl(mib, 4, procList.data(), &size, NULL, 0) < 0) {
+    std::vector<struct kinfo_proc> procList(
+        size / sizeof(struct kinfo_proc)
+    );
+
+    if (sysctl(
+            mib,
+            4,
+            procList.data(),
+            &size,
+            nullptr,
+            0) < 0)
+    {
         return processes;
     }
 
-    for (const auto& kp : procList) {
+    const std::size_t count =
+        size / sizeof(struct kinfo_proc);
+
+    processes.reserve(count);
+
+    for (std::size_t i = 0; i < count; ++i)
+    {
+        const auto& kp = procList[i];
+
         ProcessInfo info;
-        info.pid = kp.kp_proc.p_pid;
+
+        info.pid =
+            static_cast<unsigned long>(
+                kp.kp_proc.p_pid
+            );
+
         info.name = kp.kp_proc.p_comm;
         info.path = GetProcessPath(info.pid);
 
-        if (info.pid > 0 && !info.name.empty()) {
-            processes.push_back(info);
+        if (info.pid > 0 && !info.name.empty())
+        {
+            processes.push_back(std::move(info));
         }
     }
 
     return processes;
 }
 
-bool ProcessScanner::FindProcess(const std::string& targetName, ProcessInfo& found) {
-    auto processes = GetAllProcesses();
-    std::string targetLower = targetName;
-    std::transform(targetLower.begin(), targetLower.end(), targetLower.begin(), ::tolower);
 
-    for (const auto& proc : processes) {
-        std::string nameLower = proc.name;
-        std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+bool ProcessScanner::FindProcess(
+    const std::string& targetName,
+    ProcessInfo& found)
+{
+    const std::string target =
+        NormalizeProcessName(targetName);
 
-        std::string pathLower = proc.path;
-        std::transform(pathLower.begin(), pathLower.end(), pathLower.begin(), ::tolower);
+    if (target.empty())
+        return false;
 
-        if (nameLower.find(targetLower) != std::string::npos ||
-            pathLower.find(targetLower) != std::string::npos) {
-            found = proc;
+    const auto processes = GetAllProcesses();
+
+    for (const auto& process : processes)
+    {
+        if (NormalizeProcessName(process.name) == target)
+        {
+            found = process;
+            return true;
+        }
+
+        if (!process.path.empty() &&
+            NormalizeProcessName(process.path) == target)
+        {
+            found = process;
             return true;
         }
     }
+
     return false;
 }
 
-bool ProcessScanner::TerminateProcess(unsigned long pid) {
-    if (pid <= 1) return false;
-    return kill(pid, SIGKILL) == 0;
+
+bool ProcessScanner::TerminateProcess(unsigned long pid)
+{
+    if (pid <= 1)
+        return false;
+
+    return kill(
+        static_cast<pid_t>(pid),
+        SIGKILL
+    ) == 0;
 }
 
-std::string ProcessScanner::GetProcessPath(unsigned long pid) {
-    char pathbuf[PROC_PIDPATHINFO_MAXSIZE];
-    int ret = proc_pidpath(pid, pathbuf, sizeof(pathbuf));
 
-    if (ret > 0) {
-        return std::string(pathbuf);
-    }
+std::string ProcessScanner::GetProcessPath(unsigned long pid)
+{
+    char pathBuffer[PROC_PIDPATHINFO_MAXSIZE] = {};
 
-    return "";
+    const int result = proc_pidpath(
+        static_cast<int>(pid),
+        pathBuffer,
+        sizeof(pathBuffer)
+    );
+
+    if (result <= 0)
+        return "";
+
+    return std::string(pathBuffer);
 }
 
 #endif

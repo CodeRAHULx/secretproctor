@@ -41,6 +41,9 @@ bool DebuggerDetector::IsDebuggerAttached() {
             }
         }
         statusFile.close();
+    } else {
+        // Handle file open error
+        return false;
     }
 
     // Try ptrace(PTRACE_TRACEME) - fails if already traced
